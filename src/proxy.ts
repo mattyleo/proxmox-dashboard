@@ -4,8 +4,8 @@ import type { NextRequest } from 'next/server';
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
-  // Percorsi pubblici: pagina di login, API di ingestione dati (per l'agente), e risorse statiche
-  const isPublicPath = path === '/login' || path.startsWith('/api/ingest') || path.startsWith('/_next') || path === '/favicon.ico';
+  // Percorsi pubblici: pagina di login, API di ingestione dati (per l'agente), API di auth e risorse statiche
+  const isPublicPath = path === '/login' || path.startsWith('/api/auth') || path.startsWith('/api/ingest') || path.startsWith('/_next') || path === '/favicon.ico';
 
   const token = request.cookies.get('auth_token')?.value || '';
 
