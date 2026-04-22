@@ -5,7 +5,7 @@ import { suggestProxmoxSolution } from '@/lib/ai';
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-    const { api_key, hostname, status, ram_usage_percent, cpu_usage_percent, disk_usage_percent, vms } = data;
+    const { api_key, hostname, status, ram_usage_percent, cpu_usage_percent, disk_usage_percent, vms, total_ram, total_cpu, total_disk } = data;
 
     if (!api_key) {
       return NextResponse.json({ error: 'Missing api_key' }, { status: 401 });
@@ -33,12 +33,26 @@ export async function POST(request: Request) {
 
     if (existingServer) {
       serverId = existingServer.id;
-      // Aggiorna lo stato e il last_seen
-      await supabaseAdmin.from('servers').update({ status, last_seen: new Date() }).eq('id', serverId);
+      // Aggiorna lo stato, metriche totali e il last_seen
+      await supabaseAdmin.from('servers').update({ 
+        status, 
+        last_seen: new Date(),
+        total_ram,
+        total_cpu,
+        total_disk
+      }).eq('id', serverId);
     } else {
       const { data: newServer } = await supabaseAdmin
         .from('servers')
-        .insert([{ company_id: company.id, hostname, status, last_seen: new Date() }])
+        .insert([{ 
+          company_id: company.id, 
+          hostname, 
+          status, 
+          last_seen: new Date(),
+          total_ram,
+          total_cpu,
+          total_disk
+        }])
         .select()
         .single();
       serverId = newServer?.id;
@@ -89,7 +103,30 @@ export async function POST(request: Request) {
       }
     }
 
-    // (Opzionale: Mappare anche le VM passate in array 'vms')
+    // 5. Mappare le VM passate in array 'vms'
+    if (vms && Array.isArray(vms)) {
+      // Elimina le vecchie VM per questo server che non sono in questo batch (o meglio fare un upsert)
+      for (const vm of vms) {
+        const { vmid, name, status: vmStatus, maxmem, cpus, maxdisk } = vm;
+        
+        const { data: existingVm } = await supabaseAdmin
+          .from('vms')
+          .select('id')
+          .eq('server_id', serverId)
+          .eq('vmid', vmid)
+          .single();
+
+        if (existingVm) {
+          await supabaseAdmin.from('vms').update({
+            name, status: vmStatus, maxmem, cpus, maxdisk, last_seen: new Date()
+          }).eq('id', existingVm.id);
+        } else {
+          await supabaseAdmin.from('vms').insert([{
+            server_id: serverId, vmid, name, status: vmStatus, maxmem, cpus, maxdisk, last_seen: new Date()
+          }]);
+        }
+      }
+    }
 
     return NextResponse.json({ success: true, server_id: serverId });
 
