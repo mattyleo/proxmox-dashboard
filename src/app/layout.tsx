@@ -22,7 +22,7 @@ export default function RootLayout({
               P
             </div>
             <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
-              Proxmox<span className="text-primary font-black">AI</span>
+              Proxmox<span className="text-primary font-black">GM</span>
             </h1>
           </div>
 
