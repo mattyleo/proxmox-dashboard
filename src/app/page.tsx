@@ -70,19 +70,36 @@ export default async function Home() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-10">
         
         {/* Quick Actions */}
+        {/* Quick Actions */}
         <div className="glass-panel p-8 rounded-3xl min-h-[400px] flex flex-col justify-center items-center text-center">
-          <div className="w-16 h-16 rounded-full bg-success/20 border border-success/30 flex items-center justify-center mb-6 text-2xl">
-            🚀
-          </div>
-          <h4 className="text-xl font-bold mb-2">Sistema Prontissimo!</h4>
-          <p className="text-sm text-muted-foreground max-w-sm mb-8">
-            Il database Supabase è collegato correttamente. Ora puoi iniziare a registrare i tuoi clienti.
-          </p>
-          
-          <Link href="/companies" className="bg-primary hover:bg-orange-500 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-primary/25">
-            Aggiungi la prima Azienda
-          </Link>
+          {totalCompanies === 0 ? (
+        <>
+        <div className="w-16 h-16 rounded-full bg-success/20 border border-success/30 flex items-center justify-center mb-6 text-2xl">
+          🚀
         </div>
+        <h4 className="text-xl font-bold mb-2">Sistema Prontissimo!</h4>
+        <p className="text-sm text-muted-foreground max-w-sm mb-8">
+          Il database Supabase è collegato correttamente. Ora puoi iniziare a registrare i tuoi clienti.
+        </p>
+        <Link href="/companies" className="bg-primary hover:bg-orange-500 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-primary/25">
+          Aggiungi la prima Azienda
+        </Link>
+      </>
+  ) : (
+    <>
+      <div className="w-16 h-16 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center mb-6 text-2xl">
+        📊
+      </div>
+      <h4 className="text-xl font-bold mb-2">Infrastruttura Attiva</h4>
+      <p className="text-sm text-muted-foreground max-w-sm mb-8">
+        Stai monitorando <span className="text-primary font-bold">{totalCompanies} aziend{totalCompanies === 1 ? 'a' : 'e'}</span> con <span className="text-primary font-bold">{totalServers} nod{totalServers === 1 ? 'o' : 'i'}</span> Proxmox attivi.
+      </p>
+      <Link href="/companies" className="bg-primary hover:bg-orange-500 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-primary/25">
+        Gestisci Aziende →
+      </Link>
+    </>
+  )}
+</div>
 
         {/* Recent Alerts Activity */}
         <div className="glass-panel p-8 rounded-3xl min-h-[400px]">
