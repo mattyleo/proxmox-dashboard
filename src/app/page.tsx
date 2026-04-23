@@ -39,7 +39,7 @@ export default async function Home() {
         <header className="flex justify-between items-end">
         <div>
           <h2 className="text-3xl font-bold tracking-tight mb-2">Overview Sistema</h2>
-          <p className="text-muted-foreground">Benvenuto nella Dashboard centralizzata ProxmoxAI.</p>
+          <p className="text-muted-foreground">Benvenuto nella Dashboard centralizzata ProxmoxGM.</p>
         </div>
       </header>
 
