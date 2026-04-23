@@ -39,7 +39,10 @@ export async function POST(request: Request) {
         last_seen: new Date(),
         total_ram,
         total_cpu,
-        total_disk
+        total_disk,
+        ram_usage_percent,
+        cpu_usage_percent,
+        disk_usage_percent
       }).eq('id', serverId);
     } else {
       const { data: newServer } = await supabaseAdmin
@@ -51,7 +54,10 @@ export async function POST(request: Request) {
           last_seen: new Date(),
           total_ram,
           total_cpu,
-          total_disk
+          total_disk,
+          ram_usage_percent,
+          cpu_usage_percent,
+          disk_usage_percent
         }])
         .select()
         .single();
