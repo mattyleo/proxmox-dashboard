@@ -3,7 +3,7 @@ import './globals.css';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Proxmox AI Dashboard',
+  title: 'Proxmox GM Dashboard',
   description: 'Multi-Tenant Proxmox Monitoring and Troubleshooting',
 };
 
