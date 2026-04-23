@@ -2,15 +2,24 @@ import { supabaseAdmin as supabase } from '@/lib/supabase';
 import Link from 'next/link';
 
 export default async function CompanyDetailsPage({ params }: { params: { id: string } }) {
+  console.log('=== DEBUG ===');
+  console.log('params.id:', params.id);
+  console.log('SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+  console.log('SERVICE_KEY exists:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+  console.log('SERVICE_KEY length:', process.env.SUPABASE_SERVICE_ROLE_KEY?.length);
+
   // 1. Fetch Company
-  const { data: company } = await supabase
+  const { data: company, error } = await supabase
     .from('companies')
     .select('*')
     .eq('id', params.id)
     .single();
 
+  console.log('company:', company);
+  console.log('error:', JSON.stringify(error));
+
   if (!company) {
-    return <div className="p-10">Azienda non trovata.</div>;
+    return <div className="p-10">Azienda non trovata. Errore: {JSON.stringify(error)}</div>;
   }
 
   // 2. Fetch Servers
@@ -49,7 +58,7 @@ export default async function CompanyDetailsPage({ params }: { params: { id: str
         </div>
       </header>
 
-      {/* Sezione Infrastruttura: Placeholder PVS/Cluster/NAS/PBS */}
+      {/* Sezione Infrastruttura */}
       <div className="glass-panel p-6 rounded-3xl flex gap-6 items-center">
         <div className="flex-1 border-r border-white/10 pr-6">
            <h3 className="text-sm font-bold text-muted-foreground mb-1">Tipo Infrastruttura</h3>
@@ -80,7 +89,6 @@ export default async function CompanyDetailsPage({ params }: { params: { id: str
 
               return (
                 <div key={server.id} className="glass-panel rounded-3xl overflow-hidden border border-white/5">
-                  {/* Intestazione Server */}
                   <div className="p-6 bg-black/20 border-b border-white/5 relative">
                     <div className={`absolute top-0 left-0 w-full h-1 ${server.status === 'online' ? 'bg-success' : 'bg-destructive'}`}></div>
                     <div className="flex justify-between items-start">
@@ -94,8 +102,6 @@ export default async function CompanyDetailsPage({ params }: { params: { id: str
                         <p className="text-sm text-muted-foreground mt-1">IP: {server.ip_address || 'Sconosciuto'} | Ultimo Contatto: {new Date(server.last_seen).toLocaleString()}</p>
                       </div>
                     </div>
-
-                    {/* Metriche Server */}
                     <div className="grid grid-cols-3 gap-4 mt-6">
                       <div className="bg-black/30 p-4 rounded-xl border border-white/5">
                         <span className="text-xs text-muted-foreground block mb-1">CPU Cores</span>
@@ -112,10 +118,8 @@ export default async function CompanyDetailsPage({ params }: { params: { id: str
                     </div>
                   </div>
 
-                  {/* Lista VM */}
                   <div className="p-6 bg-card/10">
                     <h5 className="font-bold mb-4 text-sm text-muted-foreground">Macchine Virtuali ({runningVms} / {serverVms.length} in esecuzione)</h5>
-                    
                     {serverVms.length === 0 ? (
                       <p className="text-sm text-muted-foreground italic">Nessuna VM rilevata su questo nodo.</p>
                     ) : (
