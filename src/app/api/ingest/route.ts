@@ -24,7 +24,8 @@ export async function POST(request: Request) {
 
     // 2. Trova o Crea il Server in questione
     let serverId;
-    const { data: existingServer } = await supabase
+    const { data: existingServer } = await supabaseAdmin  // ← deve usare admin
+    // const { data: existingServer } = await supabase
       .from('servers')
       .select('id')
       .eq('company_id', company.id)
