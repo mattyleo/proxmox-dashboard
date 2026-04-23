@@ -1,8 +1,14 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase';
 import Link from 'next/link';
 
-export default async function CompanyDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+/* export default async function CompanyDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params; */
+export default async function CompanyDetailsPage(props: any) {
+  const params = await props.params;
+  const id = params?.id;
+  
+  console.log('props keys:', Object.keys(props));
+  console.log('id:', id);
   
   console.log('id:', id);
 
