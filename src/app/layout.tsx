@@ -90,6 +90,9 @@ export default async function RootLayout({
               <div className="font-mono text-[10px] text-primary">
                 (377)093-3621 • info@leonimattia.it
               </div>
+              <div className="font-mono text-[10px] text-muted-foreground">
+                P. IVA IT02801150356
+              </div>
             </Link>
           </div>
         </aside>

@@ -7,6 +7,7 @@ Piattaforma centralizzata Multi-Tenant (**ML-ProxVision**) di monitoraggio, tele
 ## 👨‍💻 Ideatore e Crediti Ufficiali
 
 - **Programma ideato e sviluppato da:** Mattia Leoni
+- **Partita IVA:** `P. IVA IT02801150356`
 - **Indirizzo:** Via Città di Pemba, 21 — Reggio Emilia (RE) 42123, Italy
 - **Telefono:** `(377) 093-3621`
 - **Email:** `info@leonimattia.it`

@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==============================================================================
 # ML-ProxVision — INSTALLER AUTOMATICO COMPLETO (Ubuntu Server / Debian)
-# Ideato e sviluppato da: Mattia Leoni
+# Ideato e sviluppato da: Mattia Leoni — P. IVA IT02801150356
 # Via Città di Pemba, 21 - 42123 Reggio Emilia (RE) Italy
 # Tel: (377)093-3621 | Email: info@leonimattia.it
 # ==============================================================================
@@ -10,7 +10,8 @@ set -e
 
 echo "=================================================================="
 echo " 🚀 INSTALLER ML-ProxVision"
-echo " Ideato da Mattia Leoni — info@leonimattia.it | (377)093-3621"
+echo " Ideato da Mattia Leoni — P. IVA IT02801150356"
+echo " Via Città di Pemba, 21 Reggio Emilia | info@leonimattia.it | (377)093-3621"
 echo "=================================================================="
 
 if [ "$EUID" -ne 0 ]; then

@@ -2,8 +2,8 @@
 chcp 65001 >nul
 echo ==================================================================
 echo  ML-ProxVision - INSTALLER E AVVIO RAPIDO WINDOWS
-echo  Ideato da Mattia Leoni - Via Citta di Pemba, 21 Reggio Emilia
-echo  Tel: (377)093-3621 - Mail: info@leonimattia.it
+echo  Ideato da Mattia Leoni - P. IVA IT02801150356
+echo  Via Citta di Pemba, 21 Reggio Emilia - Tel: (377)093-3621 - info@leonimattia.it
 echo ==================================================================
 echo.
 

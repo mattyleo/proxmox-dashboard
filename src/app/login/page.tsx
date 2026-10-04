@@ -187,7 +187,7 @@ export default function LoginPage() {
           </div>
           <div>🛠️ <strong>Tecnico</strong>: visione dashboard e soluzioni problematiche</div>
           <div className="pt-2 border-t border-white/5 text-[10px] text-center opacity-75">
-            Programma ideato da <strong>Mattia Leoni</strong> — Reggio Emilia (RE) — info@leonimattia.it
+            Programma ideato da <strong>Mattia Leoni</strong> — Reggio Emilia (RE) — P. IVA IT02801150356 — info@leonimattia.it
           </div>
         </div>
       </div>

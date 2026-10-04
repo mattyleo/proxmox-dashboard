@@ -225,6 +225,14 @@ export default async function SettingsPage() {
                     </a>
                   </div>
                 </div>
+
+                <div className="flex items-start gap-3">
+                  <span className="text-primary text-base">🧾</span>
+                  <div>
+                    <span className="text-xs text-muted-foreground block">Partita IVA</span>
+                    <span className="font-mono font-bold text-white">P. IVA IT02801150356</span>
+                  </div>
+                </div>
               </div>
             </div>
 
