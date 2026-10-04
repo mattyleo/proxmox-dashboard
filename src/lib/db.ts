@@ -1,4 +1,7 @@
 import mysql from 'mysql2/promise';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 
 // Pool di connessioni MySQL — riutilizzato tra le richieste
 const pool = mysql.createPool({
@@ -18,11 +21,58 @@ export interface AppSettings {
   environment_label: string;
 }
 
+export interface StoredUser {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  role: 'admin' | 'supervisore' | 'tecnico';
+  created_at?: string;
+}
+
 export const DEFAULT_SETTINGS: AppSettings = {
-  instance_name: 'ProxmoxAI',
-  hardware_host: 'Server Principale',
+  instance_name: '',
+  hardware_host: '',
   environment_label: 'Infrastruttura Proxmox VE',
 };
+
+interface LocalStateFile {
+  settings: AppSettings;
+  users: StoredUser[];
+}
+
+const LOCAL_STATE_PATH = path.join(process.cwd(), 'data', 'local-state.json');
+
+function readLocalState(): LocalStateFile {
+  try {
+    if (fs.existsSync(LOCAL_STATE_PATH)) {
+      const raw = fs.readFileSync(LOCAL_STATE_PATH, 'utf-8');
+      const parsed = JSON.parse(raw);
+      return {
+        settings: parsed.settings || { ...DEFAULT_SETTINGS },
+        users: Array.isArray(parsed.users) ? parsed.users : [],
+      };
+    }
+  } catch {
+    // Fallback su stato vuoto
+  }
+  return {
+    settings: { ...DEFAULT_SETTINGS },
+    users: [],
+  };
+}
+
+function writeLocalState(state: LocalStateFile) {
+  try {
+    const dir = path.dirname(LOCAL_STATE_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(LOCAL_STATE_PATH, JSON.stringify(state, null, 2), 'utf-8');
+  } catch {
+    // Ignora errori su filesystem read-only
+  }
+}
 
 let schemaInitialized = false;
 
@@ -32,8 +82,8 @@ export async function ensureSchema() {
     await pool.execute(`
       CREATE TABLE IF NOT EXISTS app_settings (
         id INT PRIMARY KEY DEFAULT 1,
-        instance_name VARCHAR(255) NOT NULL DEFAULT 'ProxmoxAI',
-        hardware_host VARCHAR(255) NOT NULL DEFAULT 'Server Principale',
+        instance_name VARCHAR(255) NOT NULL DEFAULT '',
+        hardware_host VARCHAR(255) NOT NULL DEFAULT '',
         environment_label VARCHAR(255) NOT NULL DEFAULT 'Infrastruttura Proxmox VE',
         updated_at DATETIME DEFAULT NOW()
       )
@@ -41,9 +91,10 @@ export async function ensureSchema() {
 
     await pool.execute(`
       INSERT IGNORE INTO app_settings (id, instance_name, hardware_host, environment_label)
-      VALUES (1, 'ProxmoxAI', 'Server Principale', 'Infrastruttura Proxmox VE')
+      VALUES (1, '', '', 'Infrastruttura Proxmox VE')
     `);
 
+    // Tabella utenti inizialmente VUOTA: chi installa ML-ProxVision crea il proprio Admin al primo avvio
     await pool.execute(`
       CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
@@ -53,13 +104,6 @@ export async function ensureSchema() {
         password VARCHAR(255) NOT NULL,
         role VARCHAR(50) NOT NULL DEFAULT 'tecnico'
       )
-    `);
-
-    await pool.execute(`
-      INSERT IGNORE INTO users (id, name, email, password, role) VALUES
-      ('usr-admin-1', 'Mattia Leoni (Admin)', 'info@leonimattia.it', 'admin', 'admin'),
-      ('usr-sup-1', 'Supervisore Sistema', 'supervisore@proxmox.local', 'supervisore', 'supervisore'),
-      ('usr-tech-1', 'Tecnico Operativo', 'tecnico@proxmox.local', 'tecnico', 'tecnico')
     `);
 
     await pool.execute(`
@@ -224,9 +268,128 @@ export async function queryOne<T = any>(sql: string, params?: any[]): Promise<T 
 
 export async function getAppSettings(): Promise<AppSettings> {
   try {
-    const row = await queryOne<AppSettings>('SELECT instance_name, hardware_host, environment_label FROM app_settings WHERE id = 1');
-    return row || DEFAULT_SETTINGS;
+    const row = await queryOne<AppSettings>(
+      'SELECT instance_name, hardware_host, environment_label FROM app_settings WHERE id = 1'
+    );
+    if (row) return row;
   } catch {
-    return DEFAULT_SETTINGS;
+    // Fallback su stato locale
+  }
+  return readLocalState().settings;
+}
+
+export async function saveAppSettings(settings: AppSettings): Promise<void> {
+  const clean: AppSettings = {
+    instance_name: (settings.instance_name || '').trim(),
+    hardware_host: (settings.hardware_host || '').trim(),
+    environment_label: (settings.environment_label || 'Infrastruttura Proxmox VE').trim(),
+  };
+
+  const state = readLocalState();
+  state.settings = clean;
+  writeLocalState(state);
+
+  try {
+    await ensureSchema();
+    await pool.execute(
+      `INSERT INTO app_settings (id, instance_name, hardware_host, environment_label, updated_at)
+       VALUES (1, ?, ?, ?, NOW())
+       ON DUPLICATE KEY UPDATE
+         instance_name = VALUES(instance_name),
+         hardware_host = VALUES(hardware_host),
+         environment_label = VALUES(environment_label),
+         updated_at = NOW()`,
+      [clean.instance_name, clean.hardware_host, clean.environment_label]
+    );
+  } catch {
+    // Salvato nel fallback locale
+  }
+}
+
+export async function getUsersList(): Promise<StoredUser[]> {
+  try {
+    const rows = await query<StoredUser>(
+      'SELECT id, name, email, password, role, created_at FROM users ORDER BY created_at ASC'
+    );
+    return rows;
+  } catch {
+    return readLocalState().users;
+  }
+}
+
+export async function hasAnyUser(): Promise<boolean> {
+  const users = await getUsersList();
+  return users.length > 0;
+}
+
+export async function findUserByEmail(email: string): Promise<StoredUser | null> {
+  const normalized = email.trim().toLowerCase();
+  try {
+    const dbUser = await queryOne<StoredUser>(
+      'SELECT id, name, email, password, role FROM users WHERE LOWER(email) = ?',
+      [normalized]
+    );
+    if (dbUser) return dbUser;
+  } catch {
+    // Fallback su stato locale
+  }
+  const local = readLocalState().users.find((u) => u.email.toLowerCase() === normalized);
+  return local || null;
+}
+
+export async function upsertUser(user: {
+  name: string;
+  email: string;
+  password: string;
+  role: 'admin' | 'supervisore' | 'tecnico';
+}): Promise<StoredUser> {
+  const cleanEmail = user.email.trim().toLowerCase();
+  const cleanName = user.name.trim();
+  const cleanPassword = user.password.trim();
+  const role = user.role || 'tecnico';
+
+  const state = readLocalState();
+  const existingIdx = state.users.findIndex((u) => u.email.toLowerCase() === cleanEmail);
+  const userId = existingIdx >= 0 ? state.users[existingIdx].id : crypto.randomUUID();
+  const savedUser: StoredUser = {
+    id: userId,
+    name: cleanName,
+    email: cleanEmail,
+    password: cleanPassword,
+    role,
+    created_at: new Date().toISOString(),
+  };
+
+  if (existingIdx >= 0) {
+    state.users[existingIdx] = savedUser;
+  } else {
+    state.users.push(savedUser);
+  }
+  writeLocalState(state);
+
+  try {
+    await ensureSchema();
+    await pool.execute(
+      `INSERT INTO users (id, name, email, password, role)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE name = VALUES(name), password = VALUES(password), role = VALUES(role)`,
+      [userId, cleanName, cleanEmail, cleanPassword, role]
+    );
+  } catch {
+    // Salvato nel fallback locale
+  }
+
+  return savedUser;
+}
+
+export async function removeUserById(id: string): Promise<void> {
+  const state = readLocalState();
+  state.users = state.users.filter((u) => u.id !== id);
+  writeLocalState(state);
+
+  try {
+    await pool.execute('DELETE FROM users WHERE id = ?', [id]);
+  } catch {
+    // Rimosso dal fallback locale
   }
 }

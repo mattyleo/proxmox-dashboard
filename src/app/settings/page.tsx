@@ -1,44 +1,35 @@
-import pool, { getAppSettings, ensureSchema, query } from '@/lib/db';
-import { getCurrentUser, isAdmin, DEFAULT_USERS } from '@/lib/auth';
+import {
+  getAppSettings,
+  saveAppSettings,
+  getUsersList,
+  upsertUser,
+  removeUserById,
+} from '@/lib/db';
+import { getCurrentUser, isAdmin } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
 export default async function SettingsPage() {
-  const [settings, currentUser] = await Promise.all([getAppSettings(), getCurrentUser()]);
+  const [settings, currentUser, usersList] = await Promise.all([
+    getAppSettings(),
+    getCurrentUser(),
+    getUsersList(),
+  ]);
   const canManage = isAdmin(currentUser);
-
-  let usersList: any[] = [];
-  try {
-    usersList = await query('SELECT id, name, email, role, created_at FROM users ORDER BY created_at ASC');
-  } catch {
-    usersList = DEFAULT_USERS.map((u) => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      role: u.role,
-    }));
-  }
 
   async function saveSettings(formData: FormData) {
     'use server';
     const user = await getCurrentUser();
     if (!isAdmin(user)) return;
 
-    await ensureSchema();
-
-    const instanceName = (formData.get('instance_name') as string) || 'ProxmoxAI';
-    const hardwareHost = (formData.get('hardware_host') as string) || 'Server Principale';
+    const instanceName = (formData.get('instance_name') as string) || '';
+    const hardwareHost = (formData.get('hardware_host') as string) || '';
     const envLabel = (formData.get('environment_label') as string) || 'Infrastruttura Proxmox VE';
 
-    await pool.execute(
-      `INSERT INTO app_settings (id, instance_name, hardware_host, environment_label, updated_at)
-       VALUES (1, ?, ?, ?, NOW())
-       ON DUPLICATE KEY UPDATE
-         instance_name = VALUES(instance_name),
-         hardware_host = VALUES(hardware_host),
-         environment_label = VALUES(environment_label),
-         updated_at = NOW()`,
-      [instanceName.trim(), hardwareHost.trim(), envLabel.trim()]
-    );
+    await saveAppSettings({
+      instance_name: instanceName,
+      hardware_host: hardwareHost,
+      environment_label: envLabel,
+    });
 
     revalidatePath('/', 'layout');
     revalidatePath('/settings');
@@ -52,16 +43,13 @@ export default async function SettingsPage() {
     const name = (formData.get('name') as string)?.trim();
     const email = (formData.get('email') as string)?.trim().toLowerCase();
     const password = (formData.get('password') as string)?.trim();
-    const role = (formData.get('role') as string) || 'tecnico';
+    const role = ((formData.get('role') as string) || 'tecnico') as
+      | 'admin'
+      | 'supervisore'
+      | 'tecnico';
 
     if (name && email && password) {
-      await ensureSchema();
-      await pool.execute(
-        `INSERT INTO users (id, name, email, password, role)
-         VALUES (UUID(), ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE name = VALUES(name), password = VALUES(password), role = VALUES(role)`,
-        [name, email, password, role]
-      );
+      await upsertUser({ name, email, password, role });
       revalidatePath('/settings');
     }
   }
@@ -72,8 +60,8 @@ export default async function SettingsPage() {
     if (!isAdmin(user)) return;
 
     const id = formData.get('id') as string;
-    if (id) {
-      await pool.execute('DELETE FROM users WHERE id = ?', [id]);
+    if (id && id !== user?.id) {
+      await removeUserById(id);
       revalidatePath('/settings');
     }
   }
@@ -366,7 +354,7 @@ export default async function SettingsPage() {
                   <span className="text-xs font-mono text-muted-foreground">{u.email}</span>
                 </div>
 
-                {canManage && u.email !== 'info@leonimattia.it' && (
+                {canManage && u.id !== currentUser?.id && (
                   <form action={deleteUser}>
                     <input type="hidden" name="id" value={u.id} />
                     <button

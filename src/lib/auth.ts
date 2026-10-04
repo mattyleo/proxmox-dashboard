@@ -9,29 +9,9 @@ export interface SessionUser {
   role: UserRole;
 }
 
-export const DEFAULT_USERS: Array<SessionUser & { password: string }> = [
-  {
-    id: 'usr-admin-1',
-    name: 'Mattia Leoni (Admin)',
-    email: 'info@leonimattia.it',
-    password: 'admin',
-    role: 'admin',
-  },
-  {
-    id: 'usr-sup-1',
-    name: 'Supervisore Sistema',
-    email: 'supervisore@proxmox.local',
-    password: 'supervisore',
-    role: 'supervisore',
-  },
-  {
-    id: 'usr-tech-1',
-    name: 'Tecnico Operativo',
-    email: 'tecnico@proxmox.local',
-    password: 'tecnico',
-    role: 'tecnico',
-  },
-];
+// Nessun utente preimpostato: al primo avvio l'azienda che installa ML-ProxVision
+// crea il proprio account Amministratore e poi genera i propri Supervisori e Tecnici.
+export const DEFAULT_USERS: Array<SessionUser & { password: string }> = [];
 
 export async function getCurrentUser(): Promise<SessionUser | null> {
   try {

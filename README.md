@@ -21,10 +21,11 @@ Piattaforma centralizzata Multi-Tenant (**ML-ProxVision**) di monitoraggio, tele
 2. **Telemetria Profonda VM (QEMU & LXC) + Rilevamento Automatico Cluster e PBS**
    - Rileva Sistema Operativo esatto, Kernel, Indirizzo IP, Uptime, CPU, RAM in uso/libera, Hard Disk occupato/libero, stato QEMU Guest Agent, aggiornamenti di sistema in sospeso e stato backup su **Proxmox Backup Server (PBS)**.
    - Se i nodi Proxmox di un'azienda sono in **Cluster**, basta installare l'agent su **un solo nodo** per rilevare automaticamente tutti i nodi del cluster.
-3. **Sistema di Autenticazione a 3 Livelli (Email + Ruoli)**
-   - **👑 Admin (`info@leonimattia.it` / `admin`)**: Accesso completo a tutto, gestione utenti e personalizzazione del nome dell'azienda che monta la dashboard nella tab **⚙️ Impostazioni**.
-   - **🛡️ Supervisore (`supervisore@proxmox.local` / `supervisore`)**: Inserisce le aziende e scarica/installa gli script `proxmox-agent.sh` generati al volo e già configurati con l'API Key dell'azienda.
-   - **🛠️ Tecnico (`tecnico@proxmox.local` / `tecnico`)**: Sola visione della dashboard e consultazione delle guide/comandi per risolvere le problematiche.
+3. **Sistema di Autenticazione a 3 Livelli con Configurazione al Primo Avvio**
+   - **🚀 Primo Avvio (Zero Utenti Preimpostati)**: Quando un'azienda installa **ML-ProxVision**, alla prima apertura di `/login` crea il proprio account **👑 Amministratore** (con la propria email e password aziendale) e imposta il nome della propria azienda.
+   - **👑 Admin**: Accesso completo a tutto, creazione dei propri utenti (**Supervisori** e **Tecnici**) e personalizzazione del nome dell'azienda che monta la dashboard nella tab **⚙️ Impostazioni**.
+   - **🛡️ Supervisore**: Inserisce le aziende e scarica/installa gli script `proxmox-agent.sh` generati al volo e già configurati con l'API Key dell'azienda.
+   - **🛠️ Tecnico**: Sola visione della dashboard e consultazione delle guide/comandi per risolvere le problematiche.
 4. **Motore AI Locale Integrato (Ollama)**
    - Utilizza **Ollama (`http://127.0.0.1:11434`, modello `llama3.2:3b`)** direttamente sul server locale senza costi cloud e in totale privacy aziendale, con fallback automatico sul motore diagnostico esperto integrato.
 

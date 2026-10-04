@@ -202,34 +202,34 @@
     </div>
   </div>
 
-  <!-- SEZIONE 1: SCHERMATA DI LOGIN E RUOLI UTENTE -->
-  <h2>1. Accesso al Sistema e Gerarchia dei 3 Ruoli Utente</h2>
+  <!-- SEZIONE 1: SCHERMATA DI LOGIN, PRIMO AVVIO E RUOLI UTENTE -->
+  <h2>1. Primo Avvio (Creazione Admin Aziendale) e Gerarchia dei 3 Ruoli</h2>
   <p>
-    Aprendo l'indirizzo della dashboard (es. <code>http://localhost:3000</code>), viene presentata la schermata di <strong>Login tramite Email e Password</strong>. Il sistema distingue automaticamente 3 livelli di permessi:
+    Alla prima apertura di <strong>ML-ProxVision</strong> dopo l'installazione (<code>http://IP-SERVER:3000</code>), il database parte completamente pulito e <strong>senza utenti preimpostati</strong>. La schermata iniziale permette all'azienda che ha installato il programma di registrare il proprio <strong>Account Amministratore</strong> (Nome, Email aziendale, Password e Nome Azienda). Successivamente, dal menu <strong>⚙️ Impostazioni & Info</strong>, l'Admin potrà creare liberamente gli account per i propri <strong>Supervisori</strong> e <strong>Tecnici</strong>:
   </p>
 
   <table>
     <thead>
       <tr>
         <th>Ruolo</th>
-        <th>Credenziali Predefinite</th>
+        <th>Chi lo crea</th>
         <th>Funzioni e Permessi Abilitati</th>
       </tr>
     </thead>
     <tbody>
       <tr>
         <td><strong>👑 Admin</strong></td>
-        <td>Email: <code>info@leonimattia.it</code><br/>Pass: <code>admin</code></td>
-        <td><strong>Controllo Totale:</strong> gestisce aziende, scarica gli agent, elimina aziende, crea/rimuove utenti e personalizza il nome dell'azienda che ospita la dashboard nel menu Impostazioni.</td>
+        <td>Creato al <strong>Primo Avvio</strong> dall'azienda (o da un altro Admin)</td>
+        <td><strong>Controllo Totale:</strong> gestisce aziende, scarica gli agent, elimina aziende, crea/rimuove gli account Supervisore e Tecnico e personalizza il nome dell'azienda che ospita la dashboard nel menu Impostazioni.</td>
       </tr>
       <tr>
         <td><strong>🛡️ Supervisore</strong></td>
-        <td>Email: <code>supervisore@proxmox.local</code><br/>Pass: <code>supervisore</code></td>
+        <td>Creato dall'Admin in <strong>⚙️ Impostazioni</strong></td>
         <td><strong>Gestione Aziende & Installazione Agent:</strong> inserisce nuove aziende clienti, genera il codice API e scarica direttamente sotto al codice API il file <code>proxmox-agent.sh</code> già configurato.</td>
       </tr>
       <tr>
         <td><strong>🛠️ Tecnico</strong></td>
-        <td>Email: <code>tecnico@proxmox.local</code><br/>Pass: <code>tecnico</code></td>
+        <td>Creato dall'Admin in <strong>⚙️ Impostazioni</strong></td>
         <td><strong>Visione Dashboard & Soluzioni Problemi:</strong> consulta lo stato di aziende, nodi, VM in tempo reale e legge le procedure per risolvere i difetti, senza poter modificare impostazioni o aziende.</td>
       </tr>
     </tbody>
@@ -243,16 +243,16 @@
         <span style="background:#f59e0b"></span>
         <span style="background:#10b981"></span>
       </div>
-      <span> Illustrazione Schermata: /login — Accesso Multi-Ruolo</span>
+      <span> Illustrazione Schermata: /login — Configurazione Primo Admin & Login Aziendale</span>
     </div>
     <div style="max-width: 360px; margin: 0 auto; background: #17191f; padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12);">
       <div style="text-align:center; margin-bottom:10px;">
         <strong style="font-size:12pt;">ML-<span style="color:#f97316">ProxVision</span></strong><br/>
         <span style="font-size:8pt; color:#94a3b8;">Accesso Multi-Ruolo (Admin / Supervisore / Tecnico)</span>
       </div>
-      <div style="background:#0f1115; padding:8px; border-radius:6px; margin-bottom:6px; font-size:8.5pt;">📧 Email: <strong>info@leonimattia.it</strong></div>
-      <div style="background:#0f1115; padding:8px; border-radius:6px; margin-bottom:10px; font-size:8.5pt;">🔑 Password: <strong>•••••</strong></div>
-      <div style="background:#f97316; color:#fff; text-align:center; padding:8px; border-radius:8px; font-weight:bold; font-size:9pt;">🔐 Accedi alla Dashboard</div>
+      <div style="background:#0f1115; padding:8px; border-radius:6px; margin-bottom:6px; font-size:8.5pt;">📧 Email Aziendale: <strong>admin@tuaazienda.it</strong></div>
+      <div style="background:#0f1115; padding:8px; border-radius:6px; margin-bottom:10px; font-size:8.5pt;">🔑 Password: <strong>••••••••</strong></div>
+      <div style="background:#f97316; color:#fff; text-align:center; padding:8px; border-radius:8px; font-weight:bold; font-size:9pt;">🔐 Accedi a ML-ProxVision</div>
     </div>
   </div>
 

@@ -1,16 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('info@leonimattia.it');
-  const [password, setPassword] = useState('admin');
+  const [needsSetup, setNeedsSetup] = useState<boolean | null>(null);
+  const [name, setName] = useState('');
+  const [instanceName, setInstanceName] = useState('');
+  const [hardwareHost, setHardwareHost] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  useEffect(() => {
+    fetch('/api/auth')
+      .then((res) => res.json())
+      .then((data) => {
+        setNeedsSetup(Boolean(data.needsSetup));
+      })
+      .catch(() => {
+        setNeedsSetup(false);
+      });
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -19,7 +34,14 @@ export default function LoginPage() {
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          mode: needsSetup ? 'setup' : 'login',
+          name,
+          instance_name: instanceName,
+          hardware_host: hardwareHost,
+          email,
+          password,
+        }),
       });
 
       if (res.ok) {
@@ -36,12 +58,6 @@ export default function LoginPage() {
     }
   };
 
-  const selectPreset = (presetEmail: string, presetPass: string) => {
-    setEmail(presetEmail);
-    setPassword(presetPass);
-    setError('');
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[120px] pointer-events-none"></div>
@@ -55,20 +71,77 @@ export default function LoginPage() {
             ML-<span className="text-primary font-black">ProxVision</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Accesso Multi-Ruolo (Admin / Supervisore / Tecnico)
+            {needsSetup
+              ? '🚀 Prima Configurazione — Crea il tuo Account Amministratore'
+              : 'Accesso Multi-Ruolo (Admin / Supervisore / Tecnico)'}
           </p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        {needsSetup && (
+          <div className="mb-5 p-3.5 rounded-2xl bg-primary/10 border border-primary/30 text-xs text-muted-foreground leading-relaxed">
+            <strong className="text-primary block mb-1">🎉 Benvenuto su ML-ProxVision!</strong>
+            Nessun utente è ancora presente. Imposta ora il tuo account{' '}
+            <strong className="text-white">Amministratore</strong>. Una volta entrato, potrai creare gli account per i tuoi{' '}
+            <strong className="text-emerald-400">Supervisori</strong> e{' '}
+            <strong className="text-indigo-400">Tecnici</strong> dal menu <em>Impostazioni</em>.
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {needsSetup && (
+            <>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                  Nome e Cognome Amministratore
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="es. Mario Rossi"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                    Nome Tua Azienda (Opz.)
+                  </label>
+                  <input
+                    type="text"
+                    value={instanceName}
+                    onChange={(e) => setInstanceName(e.target.value)}
+                    placeholder="Nome azienda..."
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                    Server Ospitante (Opz.)
+                  </label>
+                  <input
+                    type="text"
+                    value={hardwareHost}
+                    onChange={(e) => setHardwareHost(e.target.value)}
+                    placeholder="es. Server / Cloud..."
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
           <div>
             <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-              Indirizzo Email
+              {needsSetup ? 'Email Amministratore' : 'Indirizzo Email'}
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="es. info@leonimattia.it"
+              placeholder="Inserisci la tua email aziendale..."
               className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               required
             />
@@ -76,7 +149,7 @@ export default function LoginPage() {
 
           <div>
             <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-              Password
+              {needsSetup ? 'Scegli una Password Amministratore' : 'Password'}
             </label>
             <input
               type="password"
@@ -99,75 +172,22 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-primary hover:bg-orange-500 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-lg shadow-primary/25 flex justify-center items-center gap-2 disabled:opacity-50 cursor-pointer"
           >
-            {loading ? 'Verifica credenziali...' : '🔐 Accedi alla Dashboard'}
+            {loading
+              ? 'Attendere...'
+              : needsSetup
+              ? '🚀 Crea Amministratore e Avvia ML-ProxVision'
+              : '🔐 Accedi a ML-ProxVision'}
           </button>
         </form>
 
-        <div className="mt-6 pt-5 border-t border-white/10 space-y-2.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
-            Seleziona Livello di Accesso Predefinito:
-          </span>
-
-          <div className="grid grid-cols-1 gap-2 text-xs">
-            <button
-              type="button"
-              onClick={() => selectPreset('info@leonimattia.it', 'admin')}
-              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex justify-between items-center ${
-                email === 'info@leonimattia.it'
-                  ? 'border-primary bg-primary/15'
-                  : 'border-white/10 bg-black/30 hover:bg-white/5'
-              }`}
-            >
-              <div>
-                <span className="font-bold text-white block">👑 Amministratore</span>
-                <span className="font-mono text-[11px] text-muted-foreground">
-                  info@leonimattia.it • pass: admin
-                </span>
-              </div>
-              <span className="bg-primary/20 text-primary px-2 py-0.5 rounded text-[10px] font-bold">
-                ACCESSO TOTALE
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => selectPreset('supervisore@proxmox.local', 'supervisore')}
-              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex justify-between items-center ${
-                email === 'supervisore@proxmox.local'
-                  ? 'border-emerald-400 bg-emerald-500/15'
-                  : 'border-white/10 bg-black/30 hover:bg-white/5'
-              }`}
-            >
-              <div>
-                <span className="font-bold text-white block">🛡️ Supervisore</span>
-                <span className="font-mono text-[11px] text-muted-foreground">
-                  supervisore@proxmox.local • pass: supervisore
-                </span>
-              </div>
-              <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded text-[10px] font-bold">
-                AZIENDE & AGENT
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => selectPreset('tecnico@proxmox.local', 'tecnico')}
-              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex justify-between items-center ${
-                email === 'tecnico@proxmox.local'
-                  ? 'border-indigo-400 bg-indigo-500/15'
-                  : 'border-white/10 bg-black/30 hover:bg-white/5'
-              }`}
-            >
-              <div>
-                <span className="font-bold text-white block">🛠️ Tecnico</span>
-                <span className="font-mono text-[11px] text-muted-foreground">
-                  tecnico@proxmox.local • pass: tecnico
-                </span>
-              </div>
-              <span className="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-[10px] font-bold">
-                VISIONE & SOLUZIONI
-              </span>
-            </button>
+        <div className="mt-6 pt-5 border-t border-white/10 space-y-2 text-[11px] text-muted-foreground">
+          <div className="flex justify-between items-center">
+            <span>👑 <strong>Admin</strong>: gestione totale e utenti</span>
+            <span>🛡️ <strong>Supervisore</strong>: aziende e agent</span>
+          </div>
+          <div>🛠️ <strong>Tecnico</strong>: visione dashboard e soluzioni problematiche</div>
+          <div className="pt-2 border-t border-white/5 text-[10px] text-center opacity-75">
+            Programma ideato da <strong>Mattia Leoni</strong> — Reggio Emilia (RE) — info@leonimattia.it
           </div>
         </div>
       </div>
