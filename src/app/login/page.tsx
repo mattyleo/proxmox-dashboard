@@ -48,11 +48,11 @@ export default function LoginPage() {
 
       <div className="glass-panel p-8 md:p-10 rounded-3xl w-full max-w-md relative z-10 border border-white/10">
         <div className="text-center mb-6">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-primary to-warning shadow-lg flex items-center justify-center font-black text-white text-2xl mb-3">
-            P
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-primary to-warning shadow-lg flex items-center justify-center font-black text-white text-xl tracking-tighter mb-3">
+            ML
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight">
-            Proxmox<span className="text-primary font-black">AI</span> Dashboard
+            ML-<span className="text-primary font-black">ProxVision</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
             Accesso Multi-Ruolo (Admin / Supervisore / Tecnico)

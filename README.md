@@ -1,6 +1,6 @@
-# 🖥️ ProxmoxAI Dashboard
+# 🖥️ ML-ProxVision
 
-Piattaforma centralizzata Multi-Tenant di monitoraggio, telemetria profonda e diagnostica con **AI Locale (Ollama)** per nodi **Proxmox VE**, **Proxmox Backup Server (PBS)** e Macchine Virtuali (**QEMU & LXC**).
+Piattaforma centralizzata Multi-Tenant (**ML-ProxVision**) di monitoraggio, telemetria profonda e diagnostica con **AI Locale (Ollama)** per nodi **Proxmox VE**, **Proxmox Backup Server (PBS)** e Macchine Virtuali (**QEMU & LXC**).
 
 ---
 

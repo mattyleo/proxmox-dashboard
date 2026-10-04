@@ -256,11 +256,11 @@ export default async function SettingsPage() {
             </div>
 
             <a
-              href="/Manuale_Utilizzo_ProxmoxAI.pdf"
-              download="Manuale_Utilizzo_ProxmoxAI.pdf"
+              href="/Manuale_Utilizzo_ML-ProxVision.pdf"
+              download="Manuale_Utilizzo_ML-ProxVision.pdf"
               className="w-full flex items-center justify-center gap-2 bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary font-bold text-xs py-3 px-4 rounded-xl transition-all"
             >
-              📕 Scarica Manuale di Utilizzo Illustrato (PDF)
+              📕 Scarica Manuale Ufficiale ML-ProxVision (PDF)
             </a>
           </div>
         </section>

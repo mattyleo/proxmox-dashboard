@@ -2,7 +2,7 @@ import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 
 /**
- * Motore AI Ibrido per ProxmoxAI Dashboard:
+ * Motore AI Ibrido per ML-ProxVision:
  * 1. PRIORITÀ 1: AI Locale (Ollama in esecuzione sul server locale - http://127.0.0.1:11434)
  *    Zero costi, 100% privacy aziendale, funziona anche senza internet.
  * 2. PRIORITÀ 2: OpenAI Cloud (se OPENAI_API_KEY è presente)
@@ -16,7 +16,7 @@ export async function suggestProxmoxSolution(
   const ollamaUrl = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
   const ollamaModel = process.env.OLLAMA_MODEL || 'llama3.2:3b';
 
-  const systemPrompt = `Sei l'Intelligenza Artificiale locale del sistema di monitoraggio ProxmoxAI, specializzata in Proxmox VE, Proxmox Backup Server (PBS), Linux e Windows Server.
+  const systemPrompt = `Sei l'Intelligenza Artificiale locale del sistema di monitoraggio ML-ProxVision (ideato da Mattia Leoni), specializzata in Proxmox VE, Proxmox Backup Server (PBS), Linux e Windows Server.
 Analizza l'anomalia rilevata e rispondi in italiano in modo chiaro, tecnico e strutturato:
 TITOLO PROBLEMA: ${alertTitle}
 DATI RILEVATI: ${alertDescription}

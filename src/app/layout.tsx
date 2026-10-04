@@ -7,8 +7,8 @@ import { getAppSettings } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 
 export const metadata: Metadata = {
-  title: 'ProxmoxAI Dashboard',
-  description: 'Multi-Tenant Proxmox Monitoring and Troubleshooting — Ideato da Mattia Leoni',
+  title: 'ML-ProxVision | Proxmox & AI Infrastructure Vision',
+  description: 'ML-ProxVision — Multi-Tenant Proxmox Monitoring & AI Diagnostics — Ideato da Mattia Leoni',
 };
 
 export default async function RootLayout({
@@ -27,24 +27,28 @@ export default async function RootLayout({
           <div className="space-y-5">
             <div className="px-6 space-y-2">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-primary to-warning shadow-lg flex items-center justify-center font-black text-white text-lg">
-                  P
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-primary to-warning shadow-lg flex items-center justify-center font-black text-white text-sm tracking-tighter">
+                  ML
                 </div>
                 <div>
                   <h1 className="text-lg font-extrabold tracking-tight leading-none">
-                    Proxmox<span className="text-primary font-black">AI</span>
+                    ML-<span className="text-primary font-black">ProxVision</span>
                   </h1>
-                  <span className="text-xs font-black text-primary tracking-wide block mt-0.5">
-                    {settings.instance_name}
-                  </span>
+                  {settings.instance_name && (
+                    <span className="text-xs font-black text-primary tracking-wide block mt-0.5">
+                      {settings.instance_name}
+                    </span>
+                  )}
                 </div>
               </div>
-              <div
-                className="bg-black/30 border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-muted-foreground font-mono truncate"
-                title={settings.hardware_host}
-              >
-                🖥️ {settings.hardware_host}
-              </div>
+              {settings.hardware_host && (
+                <div
+                  className="bg-black/30 border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-muted-foreground font-mono truncate"
+                  title={settings.hardware_host}
+                >
+                  🖥️ {settings.hardware_host}
+                </div>
+              )}
             </div>
 
             <nav className="w-full px-4 flex flex-col gap-1.5">

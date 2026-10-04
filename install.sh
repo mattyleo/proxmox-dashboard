@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# PROXMOX AI DASHBOARD — INSTALLER AUTOMATICO COMPLETO (Ubuntu Server / Debian)
+# ML-ProxVision — INSTALLER AUTOMATICO COMPLETO (Ubuntu Server / Debian)
 # Ideato e sviluppato da: Mattia Leoni
 # Via Città di Pemba, 21 - 42123 Reggio Emilia (RE) Italy
 # Tel: (377)093-3621 | Email: info@leonimattia.it
@@ -9,7 +9,7 @@
 set -e
 
 echo "=================================================================="
-echo " 🚀 INSTALLER PROXMOX AI DASHBOARD"
+echo " 🚀 INSTALLER ML-ProxVision"
 echo " Ideato da Mattia Leoni — info@leonimattia.it | (377)093-3621"
 echo "=================================================================="
 
