@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "../../node_modules/tailwindcss/index.css";
 
 @theme {
   --color-background: #0f1115;
@@ -40,6 +40,38 @@
 
 @custom-variant dark (&:is(.dark *));
 
+html.light {
+  --color-background: #f1f5f9;
+  --color-foreground: #0f172a;
+  --color-card: rgba(255, 255, 255, 0.88);
+  --color-card-foreground: #0f172a;
+  --color-card-border: rgba(15, 23, 42, 0.12);
+  --color-secondary: #e2e8f0;
+  --color-secondary-foreground: #1e293b;
+  --color-muted: #cbd5e1;
+  --color-muted-foreground: #475569;
+  --color-border: rgba(15, 23, 42, 0.12);
+}
+
+html.light .text-white {
+  color: #0f172a;
+}
+
+html.light .text-gray-200,
+html.light .text-gray-300,
+html.light .text-gray-400 {
+  color: #334155;
+}
+
+html.light .bg-black\/20,
+html.light .bg-black\/30,
+html.light .bg-black\/40,
+html.light .bg-black\/50,
+html.light .bg-black\/60 {
+  background-color: rgba(241, 245, 249, 0.85);
+  border-color: rgba(15, 23, 42, 0.1);
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
@@ -58,6 +90,6 @@
   }
   
   .glass-panel-hover {
-    @apply transition-all duration-300 hover:bg-white/5 hover:border-white/10 hover:shadow-primary/5 hover:-translate-y-1;
+    @apply transition-all duration-300 hover:bg-white/5 hover:border-primary/30 hover:shadow-primary/5 hover:-translate-y-1;
   }
 }

@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: proxmox_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: proxmox_root_2024
+      MYSQL_DATABASE: proxmox_dashboard
+      MYSQL_USER: proxmox_user
+      MYSQL_PASSWORD: proxmox_pass_2024
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - proxmox_net
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: proxmox_phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: proxmox_user
+      PMA_PASSWORD: proxmox_pass_2024
+    ports:
+      - "8080:80"
+    depends_on:
+      - mysql
+    networks:
+      - proxmox_net
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  proxmox_net:
+    driver: bridge
