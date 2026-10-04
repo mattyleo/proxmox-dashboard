@@ -292,6 +292,14 @@ export default async function SettingsPage() {
                 <span className="font-mono text-muted-foreground">{settings.environment_label}</span>
               </div>
             </div>
+
+            <a
+              href="/Manuale_Utilizzo_ProxmoxAI_GM-SYSTEM.pdf"
+              download="Manuale_Utilizzo_ProxmoxAI_GM-SYSTEM.pdf"
+              className="w-full flex items-center justify-center gap-2 bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary font-bold text-xs py-3 px-4 rounded-xl transition-all"
+            >
+              📕 Scarica Manuale di Utilizzo Illustrato (PDF)
+            </a>
           </div>
         </section>
       </div>

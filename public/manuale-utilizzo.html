@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <title>Manuale di Utilizzo — ProxmoxAI Dashboard (GM-SYSTEM)</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 14mm;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    body {
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      margin: 0;
+      padding: 0;
+      line-height: 1.5;
+      font-size: 11pt;
+    }
+    .page-break {
+      page-break-before: always;
+    }
+    .cover {
+      background: linear-gradient(135deg, #0f1115 0%, #1e293b 100%);
+      color: #ffffff;
+      padding: 36px;
+      border-radius: 18px;
+      border-left: 8px solid #f97316;
+      margin-bottom: 24px;
+    }
+    .cover .badge {
+      display: inline-block;
+      background: rgba(249, 115, 22, 0.2);
+      color: #f97316;
+      border: 1px solid rgba(249, 115, 22, 0.4);
+      padding: 4px 12px;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 10pt;
+      letter-spacing: 1px;
+    }
+    .cover h1 {
+      font-size: 26pt;
+      margin: 12px 0 6px 0;
+      font-weight: 900;
+    }
+    .cover h1 span {
+      color: #f97316;
+    }
+    .cover p {
+      color: #cbd5e1;
+      font-size: 11.5pt;
+      margin: 0 0 18px 0;
+    }
+    .credits-box {
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 10pt;
+    }
+    .credits-box strong {
+      color: #f97316;
+    }
+    h2 {
+      color: #0f172a;
+      font-size: 15pt;
+      border-bottom: 2px solid #f97316;
+      padding-bottom: 5px;
+      margin-top: 22px;
+      margin-bottom: 12px;
+    }
+    h3 {
+      color: #ea580c;
+      font-size: 12pt;
+      margin-top: 14px;
+      margin-bottom: 6px;
+    }
+    .ui-preview {
+      background: #0f1115;
+      color: #ffffff;
+      border-radius: 14px;
+      padding: 16px;
+      margin: 12px 0 18px 0;
+      border: 1px solid #334155;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+    .ui-preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      font-size: 9pt;
+      color: #94a3b8;
+    }
+    .dots span {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+    .mock-card {
+      background: #17191f;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 9pt;
+    }
+    .pill-ok {
+      background: rgba(16, 185, 129, 0.2);
+      color: #10b981;
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-weight: bold;
+      font-size: 8pt;
+    }
+    .pill-warn {
+      background: rgba(245, 158, 11, 0.2);
+      color: #f59e0b;
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-weight: bold;
+      font-size: 8pt;
+    }
+    .pill-crit {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-weight: bold;
+      font-size: 8pt;
+    }
+    .bar-bg {
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 5px 0;
+      display: flex;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 16px 0;
+      font-size: 9.5pt;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 8px 10px;
+      text-align: left;
+    }
+    th {
+      background: #f1f5f9;
+      font-weight: 800;
+    }
+    code, pre {
+      font-family: Consolas, monospace;
+      background: #f1f5f9;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 9pt;
+    }
+    pre {
+      padding: 10px;
+      background: #0f172a;
+      color: #e2e8f0;
+      overflow-x: auto;
+    }
+    .info-callout {
+      background: #fff7ed;
+      border-left: 4px solid #f97316;
+      padding: 10px 14px;
+      border-radius: 6px;
+      margin: 10px 0;
+      font-size: 10pt;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- COPERTINA E CREDITI -->
+  <div class="cover">
+    <span class="badge">GM-SYSTEM • SERVER HP PROLIANT 380</span>
+    <h1>Manuale Ufficiale <span>ProxmoxAI</span> Dashboard</h1>
+    <p>Guida completa all'utilizzo dei menu, gestione multi-azienda, diagnostica VM in tempo reale, PBS e AI Locale</p>
+
+    <div class="credits-box">
+      <div><strong>Programma ideato e sviluppato da:</strong> Mattia Leoni</div>
+      <div><strong>Indirizzo:</strong> Via Città di Pemba, 21 — Reggio Emilia (RE) 42123, Italy</div>
+      <div><strong>Telefono:</strong> (377) 093-3621 &nbsp;|&nbsp; <strong>Email:</strong> info@leonimattia.it</div>
+      <div><strong>Repository Ufficiale:</strong> https://github.com/mattyleo/proxmox-dashboard</div>
+    </div>
+  </div>
+
+  <!-- SEZIONE 1: SCHERMATA DI LOGIN E RUOLI UTENTE -->
+  <h2>1. Accesso al Sistema e Gerarchia dei 3 Ruoli Utente</h2>
+  <p>
+    Aprendo l'indirizzo della dashboard (es. <code>http://localhost:3000</code> o l'IP del server Ubuntu sull'HP ProLiant 380), viene presentata la schermata di <strong>Login tramite Email e Password</strong>. Il sistema distingue automaticamente 3 livelli di permessi:
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Ruolo</th>
+        <th>Credenziali Predefinite</th>
+        <th>Funzioni e Permessi Abilitati</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>👑 Admin</strong></td>
+        <td>Email: <code>info@leonimattia.it</code><br/>Pass: <code>admin</code></td>
+        <td><strong>Controllo Totale:</strong> gestisce aziende, scarica gli agent, elimina aziende, crea/rimuove utenti e modifica il nome dell'istanza (es. <code>GM-SYSTEM</code> o <code>leonimattia</code>).</td>
+      </tr>
+      <tr>
+        <td><strong>🛡️ Supervisore</strong></td>
+        <td>Email: <code>supervisore@gm-system.it</code><br/>Pass: <code>supervisore</code></td>
+        <td><strong>Gestione Aziende & Installazione Agent:</strong> inserisce nuove aziende clienti, genera il codice API e scarica direttamente sotto al codice API il file <code>proxmox-agent.sh</code> già configurato.</td>
+      </tr>
+      <tr>
+        <td><strong>🛠️ Tecnico</strong></td>
+        <td>Email: <code>tecnico@gm-system.it</code><br/>Pass: <code>tecnico</code></td>
+        <td><strong>Visione Dashboard & Soluzioni Problemi:</strong> consulta lo stato di aziende, nodi, VM in tempo reale e legge le procedure per risolvere i difetti, senza poter modificare impostazioni o aziende.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ILLUSTRAZIONE GRAFICA MENU 1: LOGIN -->
+  <div class="ui-preview">
+    <div class="ui-preview-header">
+      <div class="dots">
+        <span style="background:#ef4444"></span>
+        <span style="background:#f59e0b"></span>
+        <span style="background:#10b981"></span>
+      </div>
+      <span> Illustrazione Schermata: /login — Accesso Multi-Ruolo</span>
+    </div>
+    <div style="max-width: 360px; margin: 0 auto; background: #17191f; padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12);">
+      <div style="text-align:center; margin-bottom:10px;">
+        <strong style="font-size:12pt;">Proxmox<span style="color:#f97316">AI</span> — GM-SYSTEM</strong><br/>
+        <span style="font-size:8pt; color:#94a3b8;">Accesso Multi-Ruolo (Admin / Supervisore / Tecnico)</span>
+      </div>
+      <div style="background:#0f1115; padding:8px; border-radius:6px; margin-bottom:6px; font-size:8.5pt;">📧 Email: <strong>info@leonimattia.it</strong></div>
+      <div style="background:#0f1115; padding:8px; border-radius:6px; margin-bottom:10px; font-size:8.5pt;">🔑 Password: <strong>•••••</strong></div>
+      <div style="background:#f97316; color:#fff; text-align:center; padding:8px; border-radius:8px; font-weight:bold; font-size:9pt;">🔐 Accedi alla Dashboard</div>
+    </div>
+  </div>
+
+  <!-- SEZIONE 2: DASHBOARD PRINCIPALE & GRAFICI A PIZZA / RETTANGOLI -->
+  <h2>2. Menu "Dashboard Generica" e Grafici Interattivi per Azienda</h2>
+  <p>
+    Appena effettuato il login, la schermata iniziale mostra l'intestazione <strong>GM-SYSTEM (Server HP ProLiant 380)</strong> e due grafici interattivi che sintetizzano lo stato di tutte le aziende monitorate:
+  </p>
+  <ul>
+    <li><strong>Grafico a Pizza / Ciambella (a sinistra):</strong> suddivide le aziende per stato di salute. Il valore <strong>100% OK</strong> (verde) indica assenza di problemi; una percentuale di problematiche pari o superiore al <strong>10%</strong> colora lo spicchio in giallo o rosso.</li>
+    <li><strong>Mappa a Rettangoli (a destra):</strong> mostra un rettangolo per ciascuna azienda con barra bicolore (verde = funzionamento regolare, arancione/rosso = % problematiche) e l'anteprima dei difetti riscontrati.</li>
+    <li><strong>Click Diretto:</strong> cliccando sullo spicchio della pizza, sul nome dell'azienda o sul rettangolo, si apre immediatamente la pagina dell'azienda posizionandosi sul riquadro <code>#problematiche</code>.</li>
+  </ul>
+
+  <!-- ILLUSTRAZIONE GRAFICA MENU 2: DASHBOARD & CHARTS -->
+  <div class="ui-preview">
+    <div class="ui-preview-header">
+      <div class="dots">
+        <span style="background:#ef4444"></span>
+        <span style="background:#f59e0b"></span>
+        <span style="background:#10b981"></span>
+      </div>
+      <span> Illustrazione Schermata: / — Dashboard Principale con Grafico a Pizza e Mappa Rettangoli</span>
+    </div>
+    <div class="grid-2">
+      <div class="mock-card" style="display:flex; align-items:center; gap:14px;">
+        <div style="width:90px; height:90px; border-radius:50%; background: conic-gradient(#10b981 0deg 140deg, #f59e0b 140deg 260deg, #ef4444 260deg 360deg); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <div style="width:46px; height:46px; border-radius:50%; background:#0f1115; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:8pt;">SALUTE</div>
+        </div>
+        <div>
+          <div style="font-weight:bold; margin-bottom:4px; color:#f97316;">🍕 Vista a Pizza Cliccabile</div>
+          <div style="font-size:8pt; margin-bottom:3px;">🟢 GM-SYSTEM Sede: <strong>100% OK</strong></div>
+          <div style="font-size:8pt; margin-bottom:3px;">🟠 Officine Rossi: <strong>20% Prob.</strong></div>
+          <div style="font-size:8pt;">🔴 Logistica SpA: <strong>40% Prob.</strong></div>
+        </div>
+      </div>
+
+      <div class="mock-card">
+        <div style="font-weight:bold; margin-bottom:6px; color:#f97316;">🟩🟧 Mappa a Rettangoli (Clicca per Diagnostica)</div>
+        <div style="background:#0f1115; padding:7px; border-radius:6px; border-left:3px solid #10b981; margin-bottom:6px;">
+          <div style="display:flex; justify-content:space-between;"><strong>🏢 GM-SYSTEM Sede</strong> <span class="pill-ok">100% OK</span></div>
+          <div class="bar-bg"><div style="width:100%; background:#10b981;"></div></div>
+        </div>
+        <div style="background:#0f1115; padding:7px; border-radius:6px; border-left:3px solid #ef4444;">
+          <div style="display:flex; justify-content:space-between;"><strong>🏢 Officine Rossi Srl</strong> <span class="pill-crit">20% Problematiche</span></div>
+          <div class="bar-bg"><div style="width:80%; background:#10b981;"></div><div style="width:20%; background:#ef4444;"></div></div>
+          <div style="font-size:7.5pt; color:#cbd5e1;">⚠️ vm-gestionale: Spazio Disco in Esaurimento (88%)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- SEZIONE 3: MENU AZIENDE & SCARICO AGENT PRECONFIGURATO -->
+  <h2>3. Menu "Aziende & Clienti" e Generazione File Agent Preconfigurato</h2>
+  <p>
+    Entrando nel menu <strong>🏢 Aziende & Clienti</strong> (con profilo <strong>Admin</strong> o <strong>Supervisore</strong>):
+  </p>
+  <ol>
+    <li>Mentre inserisci il <strong>Nome dell'Azienda</strong> nel modulo di sinistra, il programma genera in tempo reale il <strong>Codice API Key</strong>.</li>
+    <li><strong>Proprio sotto al Codice API</strong> compare il pulsante verde <strong><code>⬇️ Scarica File Agent Già Configurato (proxmox-agent-nomeazienda.sh)</code></strong>.</li>
+    <li>Il file scaricato contiene già al suo interno la chiave API dell'azienda e l'indirizzo della dashboard: basta copiarlo sul nodo Proxmox e metterlo in cron!</li>
+  </ol>
+
+  <!-- ILLUSTRAZIONE GRAFICA MENU 3: AZIENDE & DOWNLOAD AGENT -->
+  <div class="ui-preview">
+    <div class="ui-preview-header">
+      <div class="dots">
+        <span style="background:#ef4444"></span>
+        <span style="background:#f59e0b"></span>
+        <span style="background:#10b981"></span>
+      </div>
+      <span> Illustrazione Schermata: /companies — Creazione Azienda & Download Agent Sotto Codice API</span>
+    </div>
+    <div class="grid-2">
+      <div class="mock-card">
+        <div style="font-weight:bold; margin-bottom:6px;">➕ Nuova Azienda & Agent</div>
+        <div style="background:#0f1115; padding:6px; border-radius:5px; margin-bottom:6px; font-size:8pt;">Nome Azienda: <strong>Officine Rossi Srl</strong></div>
+        <div style="background:#0f1115; padding:8px; border-radius:8px; border:1px solid #f97316;">
+          <div style="font-size:7.5pt; color:#f97316; font-weight:bold;">🔑 CODICE API GENERATO:</div>
+          <div style="font-family:monospace; font-size:8pt; margin:4px 0;">a8f9d210-4c12-49e1-9b30-7712c9a0e112</div>
+          <div style="background:rgba(16,185,129,0.2); border:1px solid #10b981; color:#10b981; text-align:center; padding:5px; border-radius:6px; font-weight:bold; font-size:8pt; margin-top:6px;">
+            ⬇️ Scarica File Agent Già Configurato (.sh)
+          </div>
+        </div>
+      </div>
+      <div class="mock-card">
+        <div style="font-weight:bold; color:#f97316; font-size:10pt;">Officine Rossi Srl</div>
+        <div style="font-size:8pt; color:#94a3b8; margin-bottom:8px;">admin@officinerossi.it</div>
+        <div style="background:#0f1115; padding:8px; border-radius:8px; font-size:8pt;">
+          <div>🔑 API Key: <span style="color:#f97316; font-family:monospace;">a8f9d210-4c12...</span></div>
+          <div style="margin-top:6px; color:#10b981; font-weight:bold;">⬇️ Scarica Agent Già Configurato (.sh)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-callout">
+    <strong>💡 Come funziona se l'azienda ha un Cluster Proxmox (più nodi) o un PBS?</strong>
+    <ul style="margin:4px 0 0 0; padding-left:18px;">
+      <li><strong>Cluster Proxmox:</strong> se i nodi Proxmox del cliente sono uniti in Cluster, ti basta installare il file <code>.sh</code> su <strong>UNO SOLO dei nodi</strong>! L'agente v5 interroga <code>/nodes</code> e invia in automatico i dati di tutti i nodi del cluster e di tutte le loro VM.</li>
+      <li><strong>Proxmox Separati (Non in cluster):</strong> se un'azienda ha più server Proxmox indipendenti, installa <strong>lo stesso identico file <code>.sh</code></strong> dell'azienda su ciascun Proxmox: la dashboard li raggrupperà tutti sotto la stessa azienda.</li>
+      <li><strong>Proxmox Backup Server (PBS):</strong> viene rilevato <strong>in automatico</strong> leggendo gli storage del nodo Proxmox VE (senza dover installare nulla sul PBS).</li>
+    </ul>
+  </div>
+
+  <!-- SEZIONE 4: DETTAGLIO AZIENDA E SINGOLA VM IN TEMPO REALE -->
+  <h2>4. Vista Macchine Virtuali, Risorse in Tempo Reale e Diagnostica Soluzioni</h2>
+  <p>
+    Cliccando su un'azienda si vedono subito:
+    <strong>1) Il Riepilogo Problematiche (<code>#problematiche</code>)</strong>,
+    <strong>2) La griglia di Tutte le Macchine Virtuali (QEMU e LXC)</strong> e
+    <strong>3) Lo stato dei Nodi Fisici e del Proxmox Backup Server (PBS)</strong>.
+    Cliccando su qualsiasi VM si apre la scheda tecnica in tempo reale (con aggiornamento automatico ogni 10 secondi):
+  </p>
+
+  <!-- ILLUSTRAZIONE GRAFICA MENU 4: DETTAGLIO VM -->
+  <div class="ui-preview">
+    <div class="ui-preview-header">
+      <div class="dots">
+        <span style="background:#ef4444"></span>
+        <span style="background:#f59e0b"></span>
+        <span style="background:#10b981"></span>
+      </div>
+      <span> Illustrazione Schermata: /companies/[id]/vms/[vmid] — Stato VM in Tempo Reale & Soluzioni</span>
+    </div>
+    <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <strong style="font-size:11pt;">💻 srv-gestionale-erp (VMID #101)</strong>
+        <span class="pill-ok" style="margin-left:6px;">● RUNNING</span>
+        <div style="font-size:8pt; color:#94a3b8; margin-top:2px;">💿 OS: Ubuntu 22.04.4 LTS (Kernel 5.15) • 🌐 IP: 192.168.10.101 • ⏱️ Uptime: 14g 10h • 🔄 14 Aggiornamenti</div>
+      </div>
+      <div style="background:#f97316; padding:5px 10px; border-radius:6px; font-size:8pt; font-weight:bold;">🤖 Genera Report AI</div>
+    </div>
+
+    <div class="grid-3" style="margin-bottom:10px;">
+      <div class="mock-card">
+        <div style="font-size:7.5pt; color:#94a3b8;">PROCESSORE (CPU)</div>
+        <div style="font-size:13pt; font-weight:900;">42.3% <span style="font-size:8pt; font-weight:normal;">(4 vCPU)</span></div>
+        <div style="font-size:8pt; color:#10b981;">Margine libero: 57.7%</div>
+      </div>
+      <div class="mock-card">
+        <div style="font-size:7.5pt; color:#94a3b8;">MEMORIA RAM</div>
+        <div style="font-size:13pt; font-weight:900;">89.0%</div>
+        <div style="font-size:8pt;">In uso: <strong>14.2 GB</strong> | <span style="color:#10b981;">Liberi: <strong>1.8 GB</strong></span></div>
+      </div>
+      <div class="mock-card">
+        <div style="font-size:7.5pt; color:#94a3b8;">SPAZIO DISCO (HD)</div>
+        <div style="font-size:13pt; font-weight:900;">87.0%</div>
+        <div style="font-size:8pt;">Usato: <strong>87.0 GB</strong> | <span style="color:#10b981;">Liberi: <strong>13.0 GB</strong></span></div>
+      </div>
+    </div>
+
+    <div class="mock-card" style="border-left:4px solid #f59e0b;">
+      <div style="font-weight:bold; color:#f59e0b; font-size:9pt;">🩺 Difetto Rilevato: Spazio Disco in Esaurimento (87.0%)</div>
+      <div style="font-size:8pt; color:#cbd5e1; margin:3px 0;">🛠️ <strong>Come risolvere (Comandi):</strong> <code>sudo journalctl --vacuum-time=7d && sudo apt clean</code> oppure da Proxmox: <code>qm resize 101 scsi0 +30G</code></div>
+    </div>
+  </div>
+
+  <!-- SEZIONE 5: TICKET, KNOWLEDGE BASE, IMPOSTAZIONI E INSTALLAZIONE UBUNTU -->
+  <h2>5. Menu "Ticket & Allarmi", "Knowledge Base" e "Impostazioni & Info"</h2>
+  <ul>
+    <li><strong>⚠️ Ticket & Allarmi (<code>/alerts</code>):</strong> raccoglie tutti gli allarmi aperti con la diagnosi generata dall'<strong>AI Locale (Ollama)</strong>. Con un click puoi segnare l'allarme come risolto e archiviarlo nella Knowledge Base.</li>
+    <li><strong>📚 Knowledge Base (<code>/kb</code>):</strong> archivio ricercabile di tutte le soluzioni tecniche e comandi Proxmox salvati dal team.</li>
+    <li><strong>⚙️ Impostazioni & Info (<code>/settings</code>):</strong> permette all'Admin di cambiare in qualsiasi momento il nome dell'azienda che monta la dashboard (es. <strong><code>GM-SYSTEM</code></strong> su <em>Server HP ProLiant 380</em> oppure <strong><code>leonimattia</code></strong> su <em>Cloud Azure</em>), gestire gli utenti/ruoli e visualizzare i crediti ufficiali dell'ideatore <strong>Mattia Leoni</strong>.</li>
+  </ul>
+
+  <h2>6. Procedura di Installazione su Ubuntu Server (HP ProLiant 380) e Nodi Proxmox</h2>
+  <h3>A) Installazione della Centrale Dashboard sulla VM Ubuntu Server:</h3>
+  <pre>git clone https://github.com/mattyleo/proxmox-dashboard.git
+cd proxmox-dashboard
+chmod +x install.sh && sudo ./install.sh</pre>
+
+  <h3>B) Installazione dell'Agente su un Nodo Proxmox VE:</h3>
+  <p>Scarica il file <code>proxmox-agent-&lt;azienda&gt;.sh</code> dalla pagina <strong>Aziende</strong> (sotto al codice API), copialo in <code>/root/proxmox-agent.sh</code> sul nodo Proxmox ed esegui:</p>
+  <pre>chmod +x /root/proxmox-agent.sh
+/root/proxmox-agent.sh
+echo "*/2 * * * * root /root/proxmox-agent.sh >> /var/log/proxmox-agent.log 2>&1" > /etc/cron.d/proxmox-agent</pre>
+
+</body>
+</html>
