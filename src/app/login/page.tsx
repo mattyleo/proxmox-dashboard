@@ -52,7 +52,7 @@ export default function LoginPage() {
             P
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight">
-            Proxmox<span className="text-primary font-black">AI</span> — GM-SYSTEM
+            Proxmox<span className="text-primary font-black">AI</span> Dashboard
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
             Accesso Multi-Ruolo (Admin / Supervisore / Tecnico)
@@ -103,10 +103,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Selettore rapido account per test */}
         <div className="mt-6 pt-5 border-t border-white/10 space-y-2.5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
-            Seleziona Livello di Accesso:
+            Seleziona Livello di Accesso Predefinito:
           </span>
 
           <div className="grid grid-cols-1 gap-2 text-xs">
@@ -120,7 +119,7 @@ export default function LoginPage() {
               }`}
             >
               <div>
-                <span className="font-bold text-white block">👑 Mattia Leoni (Admin)</span>
+                <span className="font-bold text-white block">👑 Amministratore</span>
                 <span className="font-mono text-[11px] text-muted-foreground">
                   info@leonimattia.it • pass: admin
                 </span>
@@ -132,9 +131,9 @@ export default function LoginPage() {
 
             <button
               type="button"
-              onClick={() => selectPreset('supervisore@gm-system.it', 'supervisore')}
+              onClick={() => selectPreset('supervisore@proxmox.local', 'supervisore')}
               className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex justify-between items-center ${
-                email === 'supervisore@gm-system.it'
+                email === 'supervisore@proxmox.local'
                   ? 'border-emerald-400 bg-emerald-500/15'
                   : 'border-white/10 bg-black/30 hover:bg-white/5'
               }`}
@@ -142,7 +141,7 @@ export default function LoginPage() {
               <div>
                 <span className="font-bold text-white block">🛡️ Supervisore</span>
                 <span className="font-mono text-[11px] text-muted-foreground">
-                  supervisore@gm-system.it • pass: supervisore
+                  supervisore@proxmox.local • pass: supervisore
                 </span>
               </div>
               <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded text-[10px] font-bold">
@@ -152,9 +151,9 @@ export default function LoginPage() {
 
             <button
               type="button"
-              onClick={() => selectPreset('tecnico@gm-system.it', 'tecnico')}
+              onClick={() => selectPreset('tecnico@proxmox.local', 'tecnico')}
               className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex justify-between items-center ${
-                email === 'tecnico@gm-system.it'
+                email === 'tecnico@proxmox.local'
                   ? 'border-indigo-400 bg-indigo-500/15'
                   : 'border-white/10 bg-black/30 hover:bg-white/5'
               }`}
@@ -162,7 +161,7 @@ export default function LoginPage() {
               <div>
                 <span className="font-bold text-white block">🛠️ Tecnico</span>
                 <span className="font-mono text-[11px] text-muted-foreground">
-                  tecnico@gm-system.it • pass: tecnico
+                  tecnico@proxmox.local • pass: tecnico
                 </span>
               </div>
               <span className="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-[10px] font-bold">

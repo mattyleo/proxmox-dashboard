@@ -2,8 +2,8 @@ import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 
 /**
- * Motore AI Ibrido per ProxmoxAI Dashboard (GM-SYSTEM):
- * 1. PRIORITÀ 1: AI Locale (Ollama in esecuzione sul server locale es. HP ProLiant 380 - http://127.0.0.1:11434)
+ * Motore AI Ibrido per ProxmoxAI Dashboard:
+ * 1. PRIORITÀ 1: AI Locale (Ollama in esecuzione sul server locale - http://127.0.0.1:11434)
  *    Zero costi, 100% privacy aziendale, funziona anche senza internet.
  * 2. PRIORITÀ 2: OpenAI Cloud (se OPENAI_API_KEY è presente)
  * 3. PRIORITÀ 3: Motore Diagnostico Esperto Locale integrato (fallback istantaneo)
@@ -16,7 +16,7 @@ export async function suggestProxmoxSolution(
   const ollamaUrl = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
   const ollamaModel = process.env.OLLAMA_MODEL || 'llama3.2:3b';
 
-  const systemPrompt = `Sei l'Intelligenza Artificiale locale del sistema di monitoraggio GM-SYSTEM (Server HP ProLiant 380), specializzata in Proxmox VE, Proxmox Backup Server (PBS), Linux e Windows Server.
+  const systemPrompt = `Sei l'Intelligenza Artificiale locale del sistema di monitoraggio ProxmoxAI, specializzata in Proxmox VE, Proxmox Backup Server (PBS), Linux e Windows Server.
 Analizza l'anomalia rilevata e rispondi in italiano in modo chiaro, tecnico e strutturato:
 TITOLO PROBLEMA: ${alertTitle}
 DATI RILEVATI: ${alertDescription}
@@ -69,7 +69,7 @@ Fornisci:
   }
 
   // 3. Motore Esperto Integrato (funziona sempre all'istante)
-  return `🛠️ [Motore Diagnostico Esperto Locale - GM-SYSTEM]
+  return `🛠️ [Motore Diagnostico Esperto Locale - ProxmoxAI]
 
 1. **Diagnosi Tecnica Automatica**:
    È stata rilevata l'anomalia **"${alertTitle}"** (${alertDescription}) su ${serverContext || 'nodo Proxmox'}.
@@ -88,5 +88,5 @@ Fornisci:
      \`sudo apt update && sudo apt upgrade -y\`
 
 3. **Nota AI Locale**:
-   Per attivare il modello neurale locale completo sul server HP ProLiant 380, avvia Ollama (\`ollama run ${ollamaModel}\`).`;
+   Per attivare il modello neurale locale completo sul server, avvia Ollama (\`ollama run ${ollamaModel}\`).`;
 }

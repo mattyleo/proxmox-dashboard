@@ -24,21 +24,10 @@ export default async function SettingsPage() {
     if (!isAdmin(user)) return;
 
     await ensureSchema();
-    const preset = formData.get('preset') as string | null;
 
-    let instanceName = (formData.get('instance_name') as string) || 'GM-SYSTEM';
-    let hardwareHost = (formData.get('hardware_host') as string) || 'Server HP ProLiant 380 (Locale)';
-    let envLabel = (formData.get('environment_label') as string) || 'On-Premise Infrastructure';
-
-    if (preset === 'gm-system') {
-      instanceName = 'GM-SYSTEM';
-      hardwareHost = 'Server HP ProLiant 380 (Locale)';
-      envLabel = 'On-Premise Proxmox / Ubuntu Server';
-    } else if (preset === 'leonimattia') {
-      instanceName = 'leonimattia';
-      hardwareHost = 'Microsoft Azure Cloud Infrastructure';
-      envLabel = 'Cloud Multi-Tenant Production';
-    }
+    const instanceName = (formData.get('instance_name') as string) || 'ProxmoxAI';
+    const hardwareHost = (formData.get('hardware_host') as string) || 'Server Principale';
+    const envLabel = (formData.get('environment_label') as string) || 'Infrastruttura Proxmox VE';
 
     await pool.execute(
       `INSERT INTO app_settings (id, instance_name, hardware_host, environment_label, updated_at)
@@ -95,7 +84,7 @@ export default async function SettingsPage() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight mb-2">⚙️ Impostazioni, Utenti & Info</h2>
           <p className="text-muted-foreground">
-            Configura l&apos;identità dell&apos;istanza, gestisci gli account con permessi differenziati e consulta i crediti ufficiali.
+            Configura il nome dell&apos;azienda che monta la dashboard, gestisci gli account utente e consulta i crediti ufficiali.
           </p>
         </div>
         {!canManage && (
@@ -112,10 +101,9 @@ export default async function SettingsPage() {
             <span className="text-xs font-bold uppercase tracking-wider text-primary">
               Personalizzazione Istanza
             </span>
-            <h3 className="text-2xl font-bold mt-1">Azienda & Server Ospitante</h3>
+            <h3 className="text-2xl font-bold mt-1">Nome Azienda & Server Ospitante</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Nome mostrato nella dashboard (es. <strong>GM-SYSTEM</strong> sul server HP ProLiant 380 oppure{' '}
-              <strong>leonimattia</strong> su Azure).
+              Inserisci qui il nome dell&apos;azienda o dell&apos;organizzazione su cui è installata questa dashboard. Il nome scelto apparirà nella barra laterale e nell&apos;intestazione.
             </p>
           </div>
 
@@ -129,6 +117,7 @@ export default async function SettingsPage() {
                   type="text"
                   name="instance_name"
                   defaultValue={settings.instance_name}
+                  placeholder="Inserisci il nome dell'azienda..."
                   required
                   className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-bold focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
@@ -142,6 +131,7 @@ export default async function SettingsPage() {
                   type="text"
                   name="hardware_host"
                   defaultValue={settings.hardware_host}
+                  placeholder="es. Server Locale / Cloud"
                   className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
               </div>
@@ -154,6 +144,7 @@ export default async function SettingsPage() {
                   type="text"
                   name="environment_label"
                   defaultValue={settings.environment_label}
+                  placeholder="es. Infrastruttura Proxmox VE"
                   className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
               </div>
@@ -164,35 +155,6 @@ export default async function SettingsPage() {
               >
                 💾 Salva Impostazioni Istanza
               </button>
-
-              <div className="pt-4 border-t border-white/10">
-                <span className="text-xs text-muted-foreground block mb-3">
-                  Profili Rapidi Preconfigurati:
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="submit"
-                    name="preset"
-                    value="gm-system"
-                    className="p-3 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-left transition-all cursor-pointer"
-                  >
-                    <span className="text-xs font-bold text-primary block">🖥️ Preset Aziendale Locale</span>
-                    <span className="text-sm font-bold text-white block">GM-SYSTEM</span>
-                    <span className="text-[11px] text-muted-foreground">HP ProLiant 380 (Ubuntu Server)</span>
-                  </button>
-
-                  <button
-                    type="submit"
-                    name="preset"
-                    value="leonimattia"
-                    className="p-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-left transition-all cursor-pointer"
-                  >
-                    <span className="text-xs font-bold text-indigo-400 block">☁️ Preset Cloud Personale</span>
-                    <span className="text-sm font-bold text-white block">leonimattia</span>
-                    <span className="text-[11px] text-muted-foreground">Microsoft Azure Cloud</span>
-                  </button>
-                </div>
-              </div>
             </form>
           ) : (
             <div className="bg-black/30 p-5 rounded-2xl border border-white/10 space-y-3 text-sm">
@@ -294,8 +256,8 @@ export default async function SettingsPage() {
             </div>
 
             <a
-              href="/Manuale_Utilizzo_ProxmoxAI_GM-SYSTEM.pdf"
-              download="Manuale_Utilizzo_ProxmoxAI_GM-SYSTEM.pdf"
+              href="/Manuale_Utilizzo_ProxmoxAI.pdf"
+              download="Manuale_Utilizzo_ProxmoxAI.pdf"
               className="w-full flex items-center justify-center gap-2 bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary font-bold text-xs py-3 px-4 rounded-xl transition-all"
             >
               📕 Scarica Manuale di Utilizzo Illustrato (PDF)
@@ -338,7 +300,7 @@ export default async function SettingsPage() {
                   type="email"
                   name="email"
                   required
-                  placeholder="es. marco@gm-system.it"
+                  placeholder="es. utente@azienda.it"
                   className="w-full bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white"
                 />
               </div>

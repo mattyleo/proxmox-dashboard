@@ -4,13 +4,12 @@
 # Ideato e sviluppato da: Mattia Leoni
 # Via Città di Pemba, 21 - 42123 Reggio Emilia (RE) Italy
 # Tel: (377)093-3621 | Email: info@leonimattia.it
-# Configurazione predefinita: GM-SYSTEM (Server HP ProLiant 380)
 # ==============================================================================
 
 set -e
 
 echo "=================================================================="
-echo " 🚀 INSTALLER PROXMOX AI DASHBOARD — GM-SYSTEM (HP ProLiant 380)"
+echo " 🚀 INSTALLER PROXMOX AI DASHBOARD"
 echo " Ideato da Mattia Leoni — info@leonimattia.it | (377)093-3621"
 echo "=================================================================="
 
@@ -35,7 +34,7 @@ else
   echo "✅ [2/6] Node.js già installato ($(node -v))"
 fi
 
-# 3. Installazione e Configurazione MySQL Server Nativo (o Docker se preferito)
+# 3. Installazione e Configurazione MySQL Server Nativo (DB pulito e vuoto)
 if ! command -v mysql &> /dev/null; then
   echo "🐬 [3/6] Installazione MySQL Server locale..."
   apt-get install -y mysql-server
@@ -45,7 +44,7 @@ else
   systemctl start mysql || true
 fi
 
-echo "🗄️  Configurazione Database 'proxmox_dashboard'..."
+echo "🗄️  Configurazione Database 'proxmox_dashboard' (vuoto)..."
 mysql -u root <<EOF || true
 CREATE DATABASE IF NOT EXISTS proxmox_dashboard CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'proxmox_root_2024';
@@ -67,7 +66,6 @@ else
   echo "✅ Ollama già installato"
 fi
 
-# Scarica il modello leggero llama3.2:3b in background se Ollama è attivo
 nohup ollama pull llama3.2:3b >/var/log/ollama-pull.log 2>&1 &
 
 # 5. Configurazione variabili ambiente (.env.local) e Build Dashboard
@@ -86,11 +84,11 @@ EOF
 npm install
 npm run build
 
-# 6. Creazione Servizio Systemd per avvio automatico al boot dell'HP ProLiant 380
+# 6. Creazione Servizio Systemd per avvio automatico al boot
 echo "🔄 [6/6] Creazione servizio di avvio automatico (proxmox-dashboard.service)..."
 cat > /etc/systemd/system/proxmox-dashboard.service <<EOF
 [Unit]
-Description=Proxmox AI Dashboard - GM-SYSTEM (Ideato da Mattia Leoni)
+Description=ProxmoxAI Dashboard (Ideato da Mattia Leoni)
 After=network.target mysql.service
 
 [Service]
@@ -117,7 +115,8 @@ echo " ✅ INSTALLAZIONE COMPLETATA CON SUCCESSO!"
 echo "=================================================================="
 echo " 🌐 Dashboard attiva su:  http://$SERVER_IP:3000"
 echo " 👑 Login Admin:          info@leonimattia.it  (Password: admin)"
-echo " 🛡️  Login Supervisore:    supervisore@gm-system.it (Password: supervisore)"
-echo " 🛠️  Login Tecnico:        tecnico@gm-system.it (Password: tecnico)"
-echo " 🧠 AI Locale Ollama:     Attiva su http://127.0.0.1:11434 (llama3.2:3b)"
+echo " 🛡️  Login Supervisore:    supervisore@proxmox.local (Password: supervisore)"
+echo " 🛠️  Login Tecnico:        tecnico@proxmox.local (Password: tecnico)"
+echo " ⚙️  Nota: Vai nel menu 'Impostazioni & Info' per inserire il nome"
+echo "     dell'azienda e del server su cui hai installato la dashboard."
 echo "=================================================================="

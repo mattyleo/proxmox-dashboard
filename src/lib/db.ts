@@ -19,9 +19,9 @@ export interface AppSettings {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  instance_name: 'GM-SYSTEM',
-  hardware_host: 'Server HP ProLiant 380 (Locale)',
-  environment_label: 'On-Premise Infrastructure',
+  instance_name: 'ProxmoxAI',
+  hardware_host: 'Server Principale',
+  environment_label: 'Infrastruttura Proxmox VE',
 };
 
 let schemaInitialized = false;
@@ -32,16 +32,16 @@ export async function ensureSchema() {
     await pool.execute(`
       CREATE TABLE IF NOT EXISTS app_settings (
         id INT PRIMARY KEY DEFAULT 1,
-        instance_name VARCHAR(255) NOT NULL DEFAULT 'GM-SYSTEM',
-        hardware_host VARCHAR(255) NOT NULL DEFAULT 'Server HP ProLiant 380 (Locale)',
-        environment_label VARCHAR(255) NOT NULL DEFAULT 'On-Premise Infrastructure',
+        instance_name VARCHAR(255) NOT NULL DEFAULT 'ProxmoxAI',
+        hardware_host VARCHAR(255) NOT NULL DEFAULT 'Server Principale',
+        environment_label VARCHAR(255) NOT NULL DEFAULT 'Infrastruttura Proxmox VE',
         updated_at DATETIME DEFAULT NOW()
       )
     `);
 
     await pool.execute(`
       INSERT IGNORE INTO app_settings (id, instance_name, hardware_host, environment_label)
-      VALUES (1, 'GM-SYSTEM', 'Server HP ProLiant 380 (Locale)', 'On-Premise Infrastructure')
+      VALUES (1, 'ProxmoxAI', 'Server Principale', 'Infrastruttura Proxmox VE')
     `);
 
     await pool.execute(`
@@ -58,9 +58,8 @@ export async function ensureSchema() {
     await pool.execute(`
       INSERT IGNORE INTO users (id, name, email, password, role) VALUES
       ('usr-admin-1', 'Mattia Leoni (Admin)', 'info@leonimattia.it', 'admin', 'admin'),
-      ('usr-admin-2', 'Admin GM-SYSTEM', 'admin@gm-system.it', 'admin', 'admin'),
-      ('usr-tech-1', 'Tecnico Supervisione', 'tecnico@gm-system.it', 'tecnico', 'tecnico'),
-      ('usr-sup-1', 'Supervisore Sala Server', 'supervisore@gm-system.it', 'supervisore', 'supervisore')
+      ('usr-sup-1', 'Supervisore Sistema', 'supervisore@proxmox.local', 'supervisore', 'supervisore'),
+      ('usr-tech-1', 'Tecnico Operativo', 'tecnico@proxmox.local', 'tecnico', 'tecnico')
     `);
 
     await pool.execute(`
@@ -212,7 +211,6 @@ export async function ensureSchema() {
 
 export default pool;
 
-// Helper per query semplici
 export async function query<T = any>(sql: string, params?: any[]): Promise<T[]> {
   await ensureSchema();
   const [rows] = await pool.execute(sql, params);

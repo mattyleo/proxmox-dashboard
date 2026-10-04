@@ -1,8 +1,7 @@
-import pool, { query, queryOne } from '@/lib/db';
+import { query, queryOne } from '@/lib/db';
 import { getCurrentUser, canDeployAgents } from '@/lib/auth';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { revalidatePath } from 'next/cache';
 
 const formatGB = (bytes: number | null | undefined) => {
   if (bytes === null || bytes === undefined || isNaN(Number(bytes))) return 'N/A';
@@ -37,158 +36,6 @@ export default async function CompanyDetailsPage({
         )
       : [];
 
-  async function simulateAgentPush() {
-    'use server';
-    const comp = await queryOne('SELECT * FROM companies WHERE id = ?', [id]);
-    if (!comp) return;
-
-    const demoPbsInfo = JSON.stringify([
-      {
-        name: 'pbs-principale',
-        type: 'PBS (Proxmox Backup Server)',
-        server: '192.168.10.25',
-        datastore: 'datastore-raid10',
-        active: true,
-        total_bytes: 4398046511104, // 4 TB
-        used_bytes: 1649267441664,  // 1.5 TB
-        avail_bytes: 2748779069440, // 2.5 TB
-      },
-    ]);
-
-    let srv = await queryOne('SELECT * FROM servers WHERE company_id = ? LIMIT 1', [comp.id]);
-    if (!srv) {
-      await pool.execute(
-        `INSERT INTO servers (id, company_id, hostname, ip_address, os_version, node_type, pbs_info, status, last_seen, total_ram, used_ram, total_cpu, cpu_usage, total_disk, used_disk, pending_updates)
-         VALUES (UUID(), ?, 'pve-node-01', '192.168.10.20', 'Proxmox VE 8.2.4 (Kernel 6.8.8-2-pve)', 'pve', ?, 'online', NOW(), 68719476736, 41231686041, 16, 34.5, 1099511627776, 615726511554, 4)`,
-        [comp.id, demoPbsInfo]
-      );
-      srv = await queryOne('SELECT * FROM servers WHERE company_id = ? LIMIT 1', [comp.id]);
-    } else {
-      await pool.execute('UPDATE servers SET pbs_info = ? WHERE id = ?', [demoPbsInfo, srv.id]);
-    }
-
-    const demoVms = [
-      {
-        vmid: 101,
-        name: 'srv-gestionale-erp',
-        vm_type: 'qemu',
-        status: 'running',
-        os_info: 'Ubuntu 22.04.4 LTS (Kernel 5.15.0-113-generic)',
-        ip_address: '192.168.10.101',
-        uptime: 1245600,
-        cpus: 4,
-        cpu_usage: 42.3,
-        maxmem: 17179869184,
-        mem_used: 15290083573,
-        ram_usage: 89.0,
-        maxdisk: 107374182400,
-        disk_used: 93415538688,
-        disk_usage: 87.0,
-        agent_enabled: 1,
-        pending_updates: 14,
-        last_backup: 'OK (Ieri 02:00 su PBS)',
-        health_issues: JSON.stringify([
-          {
-            severity: 'warning',
-            title: 'Spazio Disco in Esaurimento (87.0%)',
-            description: 'Rimangono solo 13.0 GB liberi su 100.0 GB nel filesystem principale della VM.',
-            solution:
-              '1. Accedi via SSH (192.168.10.101) e pulisci i journal log:\n   sudo journalctl --vacuum-time=7d && sudo apt clean\n2. Oppure espandi il disco a caldo dal nodo Proxmox:\n   qm resize 101 scsi0 +30G\n   e poi dentro la VM: sudo growpart /dev/sda 2 && sudo resize2fs /dev/sda2',
-          },
-          {
-            severity: 'warning',
-            title: 'Pressione Memoria RAM Elevata (89.0%)',
-            description: 'La VM sta usando 14.2 GB su 16.0 GB allocati (solo 1.8 GB liberi).',
-            solution:
-              '1. Controlla il consumo di MySQL/ERP dentro la VM con: htop\n2. Aumenta la RAM allocata da Proxmox:\n   qm set 101 -memory 24576',
-          },
-          {
-            severity: 'info',
-            title: '14 Aggiornamenti di Sistema e Sicurezza Disponibili',
-            description: 'Sono presenti 14 pacchetti Ubuntu da aggiornare (inclusi aggiornamenti kernel/sicurezza).',
-            solution:
-              '1. Crea uno snapshot da Proxmox: qm snapshot 101 pre-update\n2. Dentro la VM esegui: sudo apt update && sudo apt upgrade -y',
-          },
-        ]),
-      },
-      {
-        vmid: 102,
-        name: 'win-dc01-active-directory',
-        vm_type: 'qemu',
-        status: 'running',
-        os_info: 'Microsoft Windows Server 2022 Standard (Build 20348)',
-        ip_address: '192.168.10.102',
-        uptime: 3891200,
-        cpus: 4,
-        cpu_usage: 18.5,
-        maxmem: 8589934592,
-        mem_used: 4552665333,
-        ram_usage: 53.0,
-        maxdisk: 85899345920,
-        disk_used: 41231686041,
-        disk_usage: 48.0,
-        agent_enabled: 0,
-        pending_updates: 3,
-        last_backup: 'ERRORE (Timeout PBS)',
-        health_issues: JSON.stringify([
-          {
-            severity: 'critical',
-            title: 'Ultimo Backup Fallito: ERRORE (Timeout PBS)',
-            description: 'Il job di backup notturno verso il PBS per la VM 102 non è andato a buon fine per timeout dello snapshot VSS.',
-            solution:
-              '1. Verifica il servizio Volume Shadow Copy (VSS) dentro Windows Server (services.msc).\n2. Installa/avvia il QEMU Guest Agent dal CD virtio-win (qemu-ga-x86_64.msi) per congelare correttamente il filesystem.\n3. Riesegui il backup manuale verso il PBS: vzdump 102 --storage pbs-principale --mode snapshot',
-          },
-          {
-            severity: 'info',
-            title: 'QEMU Guest Agent non attivo',
-            description: 'Il servizio QEMU Guest Agent non risponde su questa macchina Windows.',
-            solution:
-              '1. Monta la ISO virtio-win sulla VM 102.\n2. Esegui guest-agent\\qemu-ga-x86_64.msi come Amministratore.\n3. Abilita "QEMU Guest Agent" nelle Options della VM 102 su Proxmox.',
-          },
-        ]),
-      },
-      {
-        vmid: 103,
-        name: 'lxc-reverse-proxy-nginx',
-        vm_type: 'lxc',
-        status: 'running',
-        os_info: 'Debian GNU/Linux 12 (bookworm)',
-        ip_address: '192.168.10.103',
-        uptime: 512000,
-        cpus: 2,
-        cpu_usage: 6.2,
-        maxmem: 2147483648,
-        mem_used: 429496729,
-        ram_usage: 20.0,
-        maxdisk: 17179869184,
-        disk_used: 3435973836,
-        disk_usage: 20.0,
-        agent_enabled: 1,
-        pending_updates: 0,
-        last_backup: 'OK (Ieri 02:15 su PBS)',
-        health_issues: JSON.stringify([]),
-      },
-    ];
-
-    for (const v of demoVms) {
-      const existing = await queryOne('SELECT id FROM vms WHERE server_id = ? AND vmid = ?', [srv.id, v.vmid]);
-      if (!existing) {
-        await pool.execute(
-          `INSERT INTO vms (id, server_id, vmid, name, vm_type, status, os_info, ip_address, uptime, cpus, cpu_usage, maxmem, mem_used, ram_usage, maxdisk, disk_used, disk_usage, agent_enabled, pending_updates, last_backup, health_issues, last_seen)
-           VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-          [
-            srv.id, v.vmid, v.name, v.vm_type, v.status, v.os_info, v.ip_address,
-            v.uptime, v.cpus, v.cpu_usage, v.maxmem, v.mem_used, v.ram_usage,
-            v.maxdisk, v.disk_used, v.disk_usage, v.agent_enabled,
-            v.pending_updates, v.last_backup, v.health_issues,
-          ]
-        );
-      }
-    }
-
-    revalidatePath(`/companies/${id}`);
-  }
-
   return (
     <div className="p-10 w-full max-w-7xl mx-auto space-y-10 relative z-10">
       <header className="flex flex-col md:flex-row justify-between md:items-end gap-4 border-b border-white/10 pb-6">
@@ -216,16 +63,6 @@ export default async function CompanyDetailsPage({
                 ⬇️ Scarica Agent Già Configurato (.sh)
               </a>
             </div>
-          )}
-          {canDeploy && vms.length === 0 && (
-            <form action={simulateAgentPush}>
-              <button
-                type="submit"
-                className="text-xs bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 font-bold px-3 py-2 rounded-lg transition-all cursor-pointer"
-              >
-                ⚡ Carica VM & PBS di Test (Demo Telemetria & Diagnostica)
-              </button>
-            </form>
           )}
         </div>
       </header>
@@ -358,8 +195,7 @@ export default async function CompanyDetailsPage({
           <div className="glass-panel p-10 rounded-3xl text-center text-muted-foreground">
             <p className="text-lg font-medium mb-1">Nessuna Macchina Virtuale ancora rilevata per questa azienda.</p>
             <p className="text-sm">
-              Avvia lo script <code className="text-primary">proxmox-agent.sh</code> sul nodo Proxmox oppure clicca su{' '}
-              <strong>&quot;Carica VM &amp; PBS di Test&quot;</strong> in alto a destra.
+              Scarica il file <code className="text-primary">.sh</code> in alto a destra e avvialo sul nodo Proxmox del cliente per ricevere i dati in automatico.
             </p>
           </div>
         ) : (
@@ -613,7 +449,7 @@ export default async function CompanyDetailsPage({
                 </h5>
                 {pbsStorages.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">
-                    Nessuno storage PBS o di backup esterno rilevato su questo nodo (oppure in attesa del prossimo invio dell&apos;agente).
+                    Nessuno storage PBS o di backup esterno rilevato su questo nodo.
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

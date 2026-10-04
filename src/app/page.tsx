@@ -1,12 +1,9 @@
-import pool, { query, getAppSettings } from '@/lib/db';
-import { getCurrentUser, canDeployAgents } from '@/lib/auth';
+import { query, getAppSettings } from '@/lib/db';
 import CompanyHealthCharts, { CompanyHealthItem } from '@/components/CompanyHealthCharts';
 import Link from 'next/link';
-import { revalidatePath } from 'next/cache';
 
 export default async function Home() {
-  const [settings, user] = await Promise.all([getAppSettings(), getCurrentUser()]);
-  const canDeploy = canDeployAgents(user);
+  const settings = await getAppSettings();
 
   let totalCompanies = 0,
     totalServers = 0,
@@ -49,7 +46,6 @@ export default async function Home() {
     let penaltyPercent = 0;
     const topIssues: string[] = [];
 
-    // Controlla anomalie sui nodi
     for (const srv of compServers) {
       if (srv.status !== 'online') {
         issuesCount++;
@@ -59,7 +55,6 @@ export default async function Home() {
       }
     }
 
-    // Controlla anomalie e difetti sulle VM
     for (const vm of compVms) {
       let vmIssues: any[] = [];
       try {
@@ -80,7 +75,6 @@ export default async function Home() {
       }
     }
 
-    // Aggiungi eventuali alert aperti non già contati
     for (const al of compAlerts) {
       issuesCount++;
       penaltyPercent += 10;
@@ -89,7 +83,6 @@ export default async function Home() {
       }
     }
 
-    // Se ci sono problematiche, minimo 10% di penalità come richiesto
     if (issuesCount > 0 && penaltyPercent < 10) {
       penaltyPercent = 10;
     }
@@ -110,168 +103,6 @@ export default async function Home() {
     };
   });
 
-  // Server action per popolare 3 aziende di test e vedere subito i grafici a Pizza e Rettangoli
-  async function seedDemoCompanies() {
-    'use server';
-    const demoCompanies = [
-      {
-        name: 'GM-SYSTEM Sede Centrale',
-        email: 'it@gm-system.it',
-        hostname: 'pve-gmsystem-dl380',
-        vms: [
-          {
-            vmid: 100,
-            name: 'srv-erp-produzione',
-            status: 'running',
-            os_info: 'Ubuntu 24.04 LTS',
-            ip: '192.168.1.100',
-            cpus: 8,
-            cpu_usage: 24.0,
-            maxmem: 34359738368,
-            mem_used: 12884901888,
-            ram_usage: 37.5,
-            maxdisk: 214748364800,
-            disk_used: 85899345920,
-            disk_usage: 40.0,
-            pending_updates: 0,
-            last_backup: 'OK (PBS)',
-            issues: [],
-          },
-        ],
-      },
-      {
-        name: 'Officine Meccaniche Rossi Srl',
-        email: 'admin@officinerossi.it',
-        hostname: 'pve-rossi-01',
-        vms: [
-          {
-            vmid: 101,
-            name: 'vm-gestionale-sql',
-            status: 'running',
-            os_info: 'Ubuntu 22.04 LTS',
-            ip: '192.168.20.10',
-            cpus: 4,
-            cpu_usage: 45.0,
-            maxmem: 17179869184,
-            mem_used: 15461882265,
-            ram_usage: 90.0,
-            maxdisk: 107374182400,
-            disk_used: 94489280512,
-            disk_usage: 88.0,
-            pending_updates: 12,
-            last_backup: 'OK (Ieri)',
-            issues: [
-              {
-                severity: 'warning',
-                title: 'Spazio Disco in Esaurimento (88%)',
-                description: 'Rimangono solo 12 GB liberi su 100 GB.',
-                solution: 'Esegui pulizia log: sudo journalctl --vacuum-time=7d oppure espandi con: qm resize 101 scsi0 +20G',
-              },
-              {
-                severity: 'warning',
-                title: 'RAM Quasi Piena (90%)',
-                description: '14.4 GB in uso su 16 GB.',
-                solution: 'Aumenta la RAM da Proxmox: qm set 101 -memory 24576',
-              },
-            ],
-          },
-        ],
-      },
-      {
-        name: 'Logistica Emiliana SpA',
-        email: 'ced@logisticaemiliana.it',
-        hostname: 'pve-logistica-cluster',
-        vms: [
-          {
-            vmid: 201,
-            name: 'win-dc-active-directory',
-            status: 'running',
-            os_info: 'Windows Server 2022',
-            ip: '10.0.10.5',
-            cpus: 4,
-            cpu_usage: 89.0,
-            maxmem: 17179869184,
-            mem_used: 16106127360,
-            ram_usage: 93.7,
-            maxdisk: 161061273600,
-            disk_used: 151397597184,
-            disk_usage: 94.0,
-            pending_updates: 8,
-            last_backup: 'ERRORE (Timeout PBS)',
-            issues: [
-              {
-                severity: 'critical',
-                title: 'Disco Critico al 94% (Solo 9 GB liberi)',
-                description: 'Partizione C: quasi satura sul Domain Controller.',
-                solution: 'Espandi disco su Proxmox: qm resize 201 scsi0 +50G e poi estendi volume da Gestione Disco Windows.',
-              },
-              {
-                severity: 'critical',
-                title: 'Backup PBS Fallito (Timeout VSS)',
-                description: 'Il backup notturno verso Proxmox Backup Server è fallito.',
-                solution: 'Riavvia il servizio VSS su Windows e lancia: vzdump 201 --mode snapshot --compress zstd',
-              },
-            ],
-          },
-        ],
-      },
-    ];
-
-    for (const dc of demoCompanies) {
-      await pool.execute(
-        'INSERT INTO companies (id, name, contact_email, api_key) VALUES (UUID(), ?, ?, UUID())',
-        [dc.name, dc.email]
-      );
-      const createdComp = await query<{ id: string }>(
-        'SELECT id FROM companies WHERE name = ? ORDER BY created_at DESC LIMIT 1',
-        [dc.name]
-      );
-      const compId = createdComp[0]?.id;
-      if (!compId) continue;
-
-      await pool.execute(
-        `INSERT INTO servers (id, company_id, hostname, ip_address, os_version, node_type, status, last_seen, total_ram, used_ram, total_cpu, cpu_usage, total_disk, used_disk)
-         VALUES (UUID(), ?, ?, '192.168.10.20', 'Proxmox VE 8.2', 'pve', 'online', NOW(), 68719476736, 34359738368, 16, 28.0, 1099511627776, 549755813888)`,
-        [compId, dc.hostname]
-      );
-      const createdSrv = await query<{ id: string }>(
-        'SELECT id FROM servers WHERE company_id = ? LIMIT 1',
-        [compId]
-      );
-      const srvId = createdSrv[0]?.id;
-      if (!srvId) continue;
-
-      for (const v of dc.vms) {
-        await pool.execute(
-          `INSERT INTO vms (id, server_id, vmid, name, vm_type, status, os_info, ip_address, uptime, cpus, cpu_usage, maxmem, mem_used, ram_usage, maxdisk, disk_used, disk_usage, agent_enabled, pending_updates, last_backup, health_issues, last_seen)
-           VALUES (UUID(), ?, ?, ?, 'qemu', ?, ?, ?, 864000, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, NOW())`,
-          [
-            srvId,
-            v.vmid,
-            v.name,
-            v.status,
-            v.os_info,
-            v.ip,
-            v.cpus,
-            v.cpu_usage,
-            v.maxmem,
-            v.mem_used,
-            v.ram_usage,
-            v.maxdisk,
-            v.disk_used,
-            v.disk_usage,
-            v.pending_updates,
-            v.last_backup,
-            JSON.stringify(v.issues),
-          ]
-        );
-      }
-    }
-
-    revalidatePath('/');
-    revalidatePath('/companies');
-  }
-
   return (
     <div className="p-10 w-full max-w-7xl mx-auto flex flex-col xl:flex-row gap-10 relative z-10 h-full">
       <div className="flex-1 space-y-8 overflow-y-auto pr-2 pb-10">
@@ -291,46 +122,28 @@ export default async function Home() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            {canDeploy && companiesList.length === 0 && (
-              <form action={seedDemoCompanies}>
-                <button
-                  type="submit"
-                  className="text-xs bg-primary hover:bg-orange-500 text-white font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-primary/25 transition-all cursor-pointer"
-                >
-                  ⚡ Carica 3 Aziende Demo per Grafici
-                </button>
-              </form>
-            )}
-            <Link
-              href="/settings"
-              className="text-xs bg-white/5 hover:bg-white/10 border border-white/10 px-3.5 py-2.5 rounded-xl font-semibold text-muted-foreground hover:text-white transition-colors"
-            >
-              ⚙️ Impostazioni
-            </Link>
-          </div>
+          <Link
+            href="/settings"
+            className="text-xs bg-white/5 hover:bg-white/10 border border-white/10 px-3.5 py-2.5 rounded-xl font-semibold text-muted-foreground hover:text-white transition-colors"
+          >
+            ⚙️ Impostazioni Istanza
+          </Link>
         </header>
 
         {/* CHARTS INTERATTIVI: PIZZA + RETTANGOLI PER AZIENDE */}
         {companyHealthData.length > 0 ? (
           <CompanyHealthCharts companies={companyHealthData} />
         ) : (
-          <div className="glass-panel p-8 rounded-3xl border border-primary/30 text-center space-y-4">
-            <div className="text-4xl">📊</div>
-            <h3 className="text-xl font-bold">Grafici Salute Aziende (Pizza & Rettangoli)</h3>
+          <div className="glass-panel p-8 rounded-3xl border border-white/10 text-center space-y-3">
+            <div className="text-3xl">📊</div>
+            <h3 className="text-lg font-bold">Grafici Salute Aziende (Pizza & Rettangoli)</h3>
             <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-              Non ci sono ancora aziende nel database. Clicca sul pulsante qui sotto per generare subito 3 aziende di esempio (una al <strong>100% OK</strong>, una con <strong>20% problematiche</strong> e una con <strong>40% problematiche critiche</strong>) e testare i grafici interattivi!
+              Il database è pronto e vuoto. Appena registrerai la prima azienda nella sezione{' '}
+              <Link href="/companies" className="text-primary font-bold hover:underline">
+                Aziende & Clienti
+              </Link>{' '}
+              compariranno qui il grafico a pizza e la mappa a rettangoli con le percentuali di funzionamento.
             </p>
-            {canDeploy && (
-              <form action={seedDemoCompanies}>
-                <button
-                  type="submit"
-                  className="bg-primary hover:bg-orange-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-primary/25 transition-all cursor-pointer"
-                >
-                  ⚡ Genera Subito Grafici & Aziende Demo
-                </button>
-              </form>
-            )}
           </div>
         )}
 
@@ -340,7 +153,7 @@ export default async function Home() {
             <div className="absolute -right-4 -top-4 w-24 h-24 bg-primary/20 rounded-full blur-2xl"></div>
             <h3 className="text-sm font-medium text-muted-foreground mb-4">Aziende Collegate</h3>
             <div className="text-5xl font-black">{totalCompanies}</div>
-            <p className="text-xs text-success font-medium mt-2">Database MySQL Locale ✅</p>
+            <p className="text-xs text-success font-medium mt-2">Database MySQL Attivo ✅</p>
           </div>
           <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden">
             <div className="absolute -right-4 -top-4 w-24 h-24 bg-indigo-500/20 rounded-full blur-2xl"></div>
