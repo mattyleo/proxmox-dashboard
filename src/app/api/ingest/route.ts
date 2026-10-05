@@ -80,15 +80,42 @@ export async function POST(request: Request) {
     await ensureSchema();
     const data = await request.json();
     const {
-      api_key, hostname, ip_address, os_version, node_type, pbs_info, status,
+      api_key, company_name, hostname, ip_address, os_version, node_type, pbs_info, status,
       ram_usage_percent, cpu_usage_percent, disk_usage_percent,
       vms, total_ram, used_ram, total_cpu, total_disk, used_disk, pending_updates
     } = data;
 
     if (!api_key) return NextResponse.json({ error: 'Missing api_key' }, { status: 401 });
 
-    // 1. Verifica azienda tramite API key
-    const company = await queryOne('SELECT * FROM companies WHERE api_key = ?', [api_key]);
+    // 1. Verifica azienda tramite API key (con auto-associazione intelligente se l'utente ha rigenerato la chiave)
+    let company = await queryOne('SELECT * FROM companies WHERE api_key = ?', [api_key]);
+
+    if (!company && company_name) {
+      company = await queryOne('SELECT * FROM companies WHERE LOWER(name) = LOWER(?)', [
+        String(company_name).trim(),
+      ]);
+    }
+
+    if (!company) {
+      // Se c'è una sola azienda registrata nel DB (es. "go systems"), associa automaticamente a quella!
+      const allCompanies = await pool.execute('SELECT * FROM companies ORDER BY created_at DESC');
+      const rows = (allCompanies[0] as any[]) || [];
+      if (rows.length === 1) {
+        company = rows[0];
+      } else {
+        // Altrimenti crea automaticamente l'azienda con questa API key per non perdere mai i dati
+        const autoName =
+          company_name && company_name !== 'Azienda'
+            ? String(company_name).trim()
+            : `Azienda (${hostname || 'Proxmox'})`;
+        await pool.execute(
+          'INSERT IGNORE INTO companies (id, name, api_key) VALUES (UUID(), ?, ?)',
+          [autoName, api_key]
+        );
+        company = await queryOne('SELECT * FROM companies WHERE api_key = ?', [api_key]);
+      }
+    }
+
     if (!company) return NextResponse.json({ error: 'Invalid api_key' }, { status: 401 });
 
     const calcUsedRam = used_ram ?? (total_ram && ram_usage_percent ? Math.round((total_ram * ram_usage_percent) / 100) : null);

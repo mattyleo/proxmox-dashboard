@@ -29,7 +29,9 @@ export default async function CompaniesPage() {
       const { default: pool } = await import('@/lib/db');
       if (customApiKey) {
         await pool.execute(
-          'INSERT INTO companies (id, name, contact_email, api_key) VALUES (UUID(), ?, ?, ?)',
+          `INSERT INTO companies (id, name, contact_email, api_key)
+           VALUES (UUID(), ?, ?, ?)
+           ON DUPLICATE KEY UPDATE name = VALUES(name), contact_email = VALUES(contact_email)`,
           [name, email || null, customApiKey]
         );
       } else {

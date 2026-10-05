@@ -22,8 +22,13 @@ export default function CompanyCreationForm({
   const [email, setEmail] = useState('');
   const [apiKey, setApiKey] = useState('');
 
+  const [origin, setOrigin] = useState('');
+
   useEffect(() => {
     setApiKey(generateUUID());
+    if (typeof window !== 'undefined') {
+      setOrigin(window.location.origin);
+    }
   }, []);
 
   const handleSubmit = async (formData: FormData) => {
@@ -35,7 +40,9 @@ export default function CompanyCreationForm({
 
   const downloadUrl = `/api/agent-download?api_key=${encodeURIComponent(
     apiKey
-  )}&name=${encodeURIComponent(name || 'azienda')}`;
+  )}&name=${encodeURIComponent(name || 'azienda')}&email=${encodeURIComponent(
+    email
+  )}&origin=${encodeURIComponent(origin)}`;
 
   return (
     <form action={handleSubmit} className="space-y-4">

@@ -1,32 +1,30 @@
 #!/bin/bash
 # ============================================================
-# ProxmoxAI Agent v5 - Auto-Discovery Cluster Multi-Nodo + PBS + VM
-# ============================================================
-# COME FUNZIONA CON PIÙ NODI PROXMOX:
-#   - SE I PROXMOX SONO IN CLUSTER:
-#     Basta installare questo file su UNO SOLO dei nodi del cluster!
-#     Lo script interroga `/nodes` e rileva in automatico tutti i nodi
-#     del cluster, le loro VM e gli storage PBS.
-#   - SE I PROXMOX SONO SEPARATI (NON IN CLUSTER):
-#     Copia questo STESSO file (con la stessa API Key dell'azienda)
-#     su ciascun server Proxmox: la dashboard li raggrupperà tutti
-#     sotto la stessa azienda!
+# ML-ProxVision Agent v6 - Auto-Discovery Cluster Multi-Nodo + PBS + VM
+# Supporto nativo HTTP (3000) e HTTPS/SSL (443 Nginx auto-firmato)
 # ============================================================
 
 API_URL="http://INSERISCI_IP_DASHBOARD:3000/api/ingest"
 API_KEY="INSERISCI_QUI_LA_API_KEY_AZIENDALE"
+COMPANY_NAME="Azienda"
 
 if ! command -v python3 &> /dev/null; then
     echo "Errore: python3 non trovato."
     exit 1
 fi
 
-python3 - "$API_KEY" "$API_URL" << 'EOF'
-import subprocess, json, sys, socket, os, shutil, urllib.request
+python3 - "$API_KEY" "$API_URL" "$COMPANY_NAME" << 'EOF'
+import subprocess, json, sys, socket, os, shutil, urllib.request, urllib.error, urllib.parse, ssl
 
 api_key = sys.argv[1]
 api_url = sys.argv[2]
+company_name = sys.argv[3] if len(sys.argv) > 3 else "Azienda"
 local_hostname = socket.gethostname()
+
+# Contesto SSL permissivo per supportare Nginx con certificati HTTPS auto-firmati (porta 443)
+ssl_ctx = ssl.create_default_context()
+ssl_ctx.check_hostname = False
+ssl_ctx.verify_mode = ssl.CERT_NONE
 
 def run_cmd(cmd, timeout=8):
     try:
@@ -44,14 +42,53 @@ def pvesh_get(path, timeout=8):
     except Exception:
         return None
 
+def build_candidate_urls(primary_url):
+    urls = [primary_url]
+    try:
+        parsed = urllib.parse.urlparse(primary_url)
+        host_only = parsed.hostname or ""
+        if host_only and host_only not in ("localhost", "127.0.0.1"):
+            http_3000 = f"http://{host_only}:3000/api/ingest"
+            https_443 = f"https://{host_only}/api/ingest"
+            http_80 = f"http://{host_only}/api/ingest"
+            for u in (http_3000, https_443, http_80):
+                if u not in urls:
+                    urls.append(u)
+    except Exception:
+        pass
+    return urls
+
 def send_payload(payload):
     data_bytes = json.dumps(payload).encode('utf-8')
-    req = urllib.request.Request(api_url, data=data_bytes, headers={'Content-Type': 'application/json'}, method='POST')
-    try:
-        with urllib.request.urlopen(req, timeout=25) as resp:
-            print(f"[OK] Inviati dati per nodo '{payload.get('hostname')}' (HTTP {resp.status})")
-    except Exception as e:
-        print(f"[ERRORE] Invio fallito per nodo '{payload.get('hostname')}': {e}")
+    candidate_urls = build_candidate_urls(api_url)
+    last_err = None
+
+    for target_url in candidate_urls:
+        req = urllib.request.Request(
+            target_url,
+            data=data_bytes,
+            headers={'Content-Type': 'application/json', 'User-Agent': 'ML-ProxVision-Agent/6.0'},
+            method='POST'
+        )
+        try:
+            if target_url.startswith('https://'):
+                resp_ctx = urllib.request.urlopen(req, timeout=25, context=ssl_ctx)
+            else:
+                resp_ctx = urllib.request.urlopen(req, timeout=25)
+            with resp_ctx as resp:
+                print(f"[OK] Inviati dati per nodo '{payload.get('hostname')}' a {target_url} (HTTP {resp.status})")
+                return
+        except urllib.error.HTTPError as he:
+            err_body = ""
+            try:
+                err_body = he.read().decode('utf-8', errors='ignore')
+            except Exception:
+                pass
+            last_err = f"HTTP {he.code} su {target_url}: {err_body or he.reason}"
+        except Exception as e:
+            last_err = f"{target_url} -> {e}"
+
+    print(f"[ERRORE] Invio fallito per nodo '{payload.get('hostname')}': {last_err}")
 
 is_pve = shutil.which('pvesh') is not None
 is_pbs_host = (not is_pve) and (shutil.which('proxmox-backup-manager') is not None)
@@ -75,7 +112,6 @@ def collect_and_send_pve_node(target_node, storage_cfg_map):
     node_stat = pvesh_get(f'/nodes/{target_node}/status') or {}
     is_local = (target_node == local_hostname)
 
-    # CPU, RAM e Disco del nodo (letti via API cluster di Proxmox così funziona anche per gli altri nodi del cluster!)
     cpu_pct_node = round(float(node_stat.get('cpu', 0)) * 100.0, 1)
     cpu_info = node_stat.get('cpuinfo', {}) if isinstance(node_stat.get('cpuinfo'), dict) else {}
     cpu_total = int(cpu_info.get('cpus') or os.cpu_count() or 1)
@@ -95,7 +131,6 @@ def collect_and_send_pve_node(target_node, storage_cfg_map):
         upd_out = run_cmd(['bash', '-c', 'apt-get -s upgrade 2>/dev/null | grep -P "^\\d+ upgraded" | awk \'{print $1}\''])
         node_pending_updates = int(upd_out) if upd_out.isdigit() else 0
 
-    # Rileva PBS e Storage di Backup del nodo
     pbs_storages = []
     node_storages = pvesh_get(f'/nodes/{target_node}/storage') or []
     if isinstance(node_storages, list):
@@ -249,6 +284,7 @@ def collect_and_send_pve_node(target_node, storage_cfg_map):
 
     payload = {
         'api_key': api_key,
+        'company_name': company_name,
         'hostname': target_node,
         'ip_address': local_ip if is_local else f'Cluster Node ({target_node})',
         'os_version': pve_version,
@@ -272,7 +308,6 @@ if is_pve:
     storage_cfg_list = pvesh_get('/storage') or []
     storage_cfg_map = {sc['storage']: sc for sc in storage_cfg_list if isinstance(sc, dict) and sc.get('storage')}
 
-    # Rileva automaticamente tutti i nodi se siamo in un Cluster Proxmox!
     cluster_nodes = pvesh_get('/nodes') or []
     if isinstance(cluster_nodes, list) and len(cluster_nodes) > 0:
         for n in cluster_nodes:
