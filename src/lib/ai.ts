@@ -29,16 +29,35 @@ Fornisci:
 
   // 1. Tenta prima con l'AI Locale (Ollama)
   try {
+    let activeModel = ollamaModel;
+    try {
+      const tagsRes = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
+      if (tagsRes.ok) {
+        const tagsData = await tagsRes.json();
+        const models: string[] = (tagsData?.models || []).map((m: any) => String(m.name));
+        if (models.length > 0 && !models.includes(activeModel)) {
+          activeModel = models[0];
+        }
+      }
+    } catch {
+      // Continua con il modello predefinito
+    }
+
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    // 90 secondi di margine per permettere anche alle VM senza GPU (solo CPU) di elaborare la risposta
+    const timeout = setTimeout(() => controller.abort(), 90000);
 
     const res = await fetch(`${ollamaUrl}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: ollamaModel,
+        model: activeModel,
         prompt: systemPrompt,
         stream: false,
+        options: {
+          num_predict: 380,
+          temperature: 0.3,
+        },
       }),
       signal: controller.signal,
     });
@@ -48,7 +67,7 @@ Fornisci:
     if (res.ok) {
       const data = await res.json();
       if (data && data.response) {
-        return `🧠 [AI Locale Ollama - Modello: ${ollamaModel}]\n\n${String(data.response).trim()}`;
+        return `🧠 [AI Locale Ollama - Modello: ${activeModel}]\n\n${String(data.response).trim()}`;
       }
     }
   } catch {
@@ -69,7 +88,7 @@ Fornisci:
   }
 
   // 3. Motore Esperto Integrato (funziona sempre all'istante)
-  return `🛠️ [Motore Diagnostico Esperto Locale - ProxmoxAI]
+  return `🛠️ [Motore Diagnostico Esperto Locale - ML-ProxVision]
 
 1. **Diagnosi Tecnica Automatica**:
    È stata rilevata l'anomalia **"${alertTitle}"** (${alertDescription}) su ${serverContext || 'nodo Proxmox'}.
@@ -88,5 +107,5 @@ Fornisci:
      \`sudo apt update && sudo apt upgrade -y\`
 
 3. **Nota AI Locale**:
-   Per attivare il modello neurale locale completo sul server, avvia Ollama (\`ollama run ${ollamaModel}\`).`;
+   Per attivare il modello neurale locale completo sul server, avvia Ollama (\`ollama pull llama3.2:1b\` oppure \`ollama pull llama3.2:3b\`).`;
 }
