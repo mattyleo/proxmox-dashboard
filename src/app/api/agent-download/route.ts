@@ -52,10 +52,15 @@ function resolveDashboardBaseUrl(request: Request, originParam?: string | null):
     }
   }
 
-  // 3. Usa direttamente l'IPv4 reale della scheda di rete del server Ubuntu (es. 192.168.0.6:3000)
+  // 3. Usa direttamente l'IPv4 reale della scheda di rete del server Ubuntu (es. https://192.168.0.6)
   // così i nodi Proxmox non hanno mai errori di DNS ("No address associated with hostname")!
+  const isHttps =
+    (originParam && originParam.startsWith('https://')) ||
+    (refHeader && refHeader.startsWith('https://')) ||
+    request.headers.get('x-forwarded-proto') === 'https';
+
   if (lanIp && lanIp !== 'localhost') {
-    return `http://${lanIp}:3000`;
+    return isHttps ? `https://${lanIp}` : `http://${lanIp}:3000`;
   }
 
   const hostHeader =

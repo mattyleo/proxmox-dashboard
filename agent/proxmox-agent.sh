@@ -48,10 +48,10 @@ def build_candidate_urls(primary_url):
         parsed = urllib.parse.urlparse(primary_url)
         host_only = parsed.hostname or ""
         if host_only and host_only not in ("localhost", "127.0.0.1"):
-            http_3000 = f"http://{host_only}:3000/api/ingest"
             https_443 = f"https://{host_only}/api/ingest"
+            http_3000 = f"http://{host_only}:3000/api/ingest"
             http_80 = f"http://{host_only}/api/ingest"
-            for u in (http_3000, https_443, http_80):
+            for u in (https_443, http_3000, http_80):
                 if u not in urls:
                     urls.append(u)
     except Exception:
