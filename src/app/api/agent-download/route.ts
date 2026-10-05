@@ -20,12 +20,18 @@ function getLocalLanIp(): string {
   return 'localhost';
 }
 
+function isIpAddress(host: string): boolean {
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+}
+
 function resolveDashboardBaseUrl(request: Request, originParam?: string | null): string {
+  const lanIp = getLocalLanIp();
+
   // 1. Se passato esplicitamente dal client (window.location.origin)
   if (originParam && /^https?:\/\//i.test(originParam)) {
     try {
       const u = new URL(originParam);
-      if (u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') {
+      if (isIpAddress(u.hostname)) {
         return `${u.protocol}//${u.host}`;
       }
     } catch {
@@ -33,12 +39,12 @@ function resolveDashboardBaseUrl(request: Request, originParam?: string | null):
     }
   }
 
-  // 2. Dal Referer o Origin del browser (funziona anche dietro Nginx senza X-Forwarded-Host!)
+  // 2. Dal Referer o Origin del browser
   const refHeader = request.headers.get('origin') || request.headers.get('referer');
   if (refHeader) {
     try {
       const u = new URL(refHeader);
-      if (u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') {
+      if (isIpAddress(u.hostname)) {
         return `${u.protocol}//${u.host}`;
       }
     } catch {
@@ -46,16 +52,15 @@ function resolveDashboardBaseUrl(request: Request, originParam?: string | null):
     }
   }
 
-  // 3. Da X-Forwarded-Host / Host
-  const hostHeader =
-    request.headers.get('x-forwarded-host') || request.headers.get('host') || 'localhost:3000';
-  const protoHeader = request.headers.get('x-forwarded-proto') || 'http';
-
-  if (hostHeader.includes('localhost') || hostHeader.includes('127.0.0.1')) {
-    const lanIp = getLocalLanIp();
+  // 3. Usa direttamente l'IPv4 reale della scheda di rete del server Ubuntu (es. 192.168.0.6:3000)
+  // così i nodi Proxmox non hanno mai errori di DNS ("No address associated with hostname")!
+  if (lanIp && lanIp !== 'localhost') {
     return `http://${lanIp}:3000`;
   }
 
+  const hostHeader =
+    request.headers.get('x-forwarded-host') || request.headers.get('host') || 'localhost:3000';
+  const protoHeader = request.headers.get('x-forwarded-proto') || 'http';
   return `${protoHeader}://${hostHeader}`;
 }
 
