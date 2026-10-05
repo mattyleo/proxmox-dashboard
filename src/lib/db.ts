@@ -19,6 +19,7 @@ export interface AppSettings {
   instance_name: string;
   hardware_host: string;
   environment_label: string;
+  public_url?: string;
 }
 
 export interface StoredUser {
@@ -34,6 +35,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   instance_name: '',
   hardware_host: '',
   environment_label: 'Infrastruttura Proxmox VE',
+  public_url: '',
 };
 
 interface LocalStateFile {
@@ -230,6 +232,7 @@ export async function ensureSchema() {
       "ALTER TABLE vms ADD COLUMN IF NOT EXISTS disk_usage FLOAT",
       "ALTER TABLE vms ADD COLUMN IF NOT EXISTS agent_enabled TINYINT(1) DEFAULT 0",
       "ALTER TABLE vms ADD COLUMN IF NOT EXISTS pending_updates INT DEFAULT 0",
+      "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS public_url VARCHAR(255) DEFAULT ''",
       "ALTER TABLE vms ADD COLUMN IF NOT EXISTS last_backup VARCHAR(100)",
       "ALTER TABLE vms ADD COLUMN IF NOT EXISTS health_issues TEXT"
     ];
@@ -269,7 +272,7 @@ export async function queryOne<T = any>(sql: string, params?: any[]): Promise<T 
 export async function getAppSettings(): Promise<AppSettings> {
   try {
     const row = await queryOne<AppSettings>(
-      'SELECT instance_name, hardware_host, environment_label FROM app_settings WHERE id = 1'
+      'SELECT instance_name, hardware_host, environment_label, public_url FROM app_settings WHERE id = 1'
     );
     if (row) return row;
   } catch {
@@ -283,6 +286,7 @@ export async function saveAppSettings(settings: AppSettings): Promise<void> {
     instance_name: (settings.instance_name || '').trim(),
     hardware_host: (settings.hardware_host || '').trim(),
     environment_label: (settings.environment_label || 'Infrastruttura Proxmox VE').trim(),
+    public_url: (settings.public_url || '').trim().replace(/\/$/, ''),
   };
 
   const state = readLocalState();
@@ -292,14 +296,15 @@ export async function saveAppSettings(settings: AppSettings): Promise<void> {
   try {
     await ensureSchema();
     await pool.execute(
-      `INSERT INTO app_settings (id, instance_name, hardware_host, environment_label, updated_at)
-       VALUES (1, ?, ?, ?, NOW())
+      `INSERT INTO app_settings (id, instance_name, hardware_host, environment_label, public_url, updated_at)
+       VALUES (1, ?, ?, ?, ?, NOW())
        ON DUPLICATE KEY UPDATE
          instance_name = VALUES(instance_name),
          hardware_host = VALUES(hardware_host),
          environment_label = VALUES(environment_label),
+         public_url = VALUES(public_url),
          updated_at = NOW()`,
-      [clean.instance_name, clean.hardware_host, clean.environment_label]
+      [clean.instance_name, clean.hardware_host, clean.environment_label, clean.public_url || '']
     );
   } catch {
     // Salvato nel fallback locale

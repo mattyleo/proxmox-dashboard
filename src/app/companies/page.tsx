@@ -1,13 +1,20 @@
-import { query } from '@/lib/db';
+import { query, getAppSettings } from '@/lib/db';
 import { getCurrentUser, isAdmin, canDeployAgents } from '@/lib/auth';
+import { getLocalLanIp } from '@/app/api/agent-download/route';
 import CompanyCreationForm from '@/components/CompanyCreationForm';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
 
 export default async function CompaniesPage() {
-  const user = await getCurrentUser();
+  const [user, settings] = await Promise.all([getCurrentUser(), getAppSettings()]);
   const canDeploy = canDeployAgents(user);
   const canDelete = isAdmin(user);
+
+  const lanIp = getLocalLanIp();
+  const baseAgentUrl =
+    settings.public_url && settings.public_url.trim()
+      ? settings.public_url.trim().replace(/\/$/, '')
+      : `http://${lanIp}:3000`;
 
   let companies: any[] = [];
   try {
@@ -144,6 +151,16 @@ export default async function CompaniesPage() {
                         <span className="font-mono text-primary font-bold select-all">
                           {company.api_key}
                         </span>
+                      </div>
+
+                       {/* Comando 1-Click SSH per installazione istantanea + Cron automatico */}
+                      <div className="pt-2 border-t border-white/10 space-y-1.5">
+                        <span className="text-[11px] font-bold text-emerald-400 block">
+                          ⚡ Comando Rapido 1-Click (Incolla nel terminale Proxmox — installa anche Cron da solo!):
+                        </span>
+                        <div className="font-mono text-[11px] bg-black/70 border border-emerald-500/30 text-emerald-200 px-3 py-2 rounded-lg select-all break-all">
+                          {`curl -k -fsSL "${baseAgentUrl}/api/agent-download?api_key=${company.api_key}" | bash`}
+                        </div>
                       </div>
 
                       {/* Link di Download diretto sotto al codice API */}

@@ -24,15 +24,18 @@ export default async function SettingsPage() {
     const instanceName = (formData.get('instance_name') as string) || '';
     const hardwareHost = (formData.get('hardware_host') as string) || '';
     const envLabel = (formData.get('environment_label') as string) || 'Infrastruttura Proxmox VE';
+    const publicUrl = (formData.get('public_url') as string) || '';
 
     await saveAppSettings({
       instance_name: instanceName,
       hardware_host: hardwareHost,
       environment_label: envLabel,
+      public_url: publicUrl,
     });
 
     revalidatePath('/', 'layout');
     revalidatePath('/settings');
+    revalidatePath('/companies');
   }
 
   async function addUser(formData: FormData) {
@@ -134,6 +137,22 @@ export default async function SettingsPage() {
                   defaultValue={settings.environment_label}
                   placeholder="es. Infrastruttura Proxmox VE"
                   className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+
+              <div className="p-4 rounded-2xl bg-primary/10 border border-primary/30 space-y-1.5">
+                <label className="block text-sm font-bold text-primary">
+                  🌐 Indirizzo URL / IP della Centrale per gli Agent (Importante per i 50+ Proxmox)
+                </label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Impostalo <strong>una sola volta</strong> (es. <code>https://94.34.129.103:8443</code> se i clienti arrivano da internet, oppure <code>http://192.168.1.50:3000</code> se sono nella rete/VPN aziendale). Tutti i file agent e i comandi rapidi useranno automaticamente questo indirizzo!
+                </p>
+                <input
+                  type="text"
+                  name="public_url"
+                  defaultValue={settings.public_url || ''}
+                  placeholder="es. https://94.34.129.103:8443 oppure http://192.168.0.6:3000"
+                  className="w-full bg-black/50 border border-primary/40 rounded-xl px-4 py-3 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
               </div>
 

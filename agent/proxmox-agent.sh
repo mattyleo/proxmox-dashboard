@@ -8,6 +8,30 @@ API_URL="http://INSERISCI_IP_DASHBOARD:3000/api/ingest"
 API_KEY="INSERISCI_QUI_LA_API_KEY_AZIENDALE"
 COMPANY_NAME="Azienda"
 
+# ============================================================
+# AUTO-INSTALLAZIONE IN CRON AL PRIMO AVVIO (Zero configurazione manuale!)
+# Quando lanci lo script la prima volta sul nodo Proxmox, si copia da solo in
+# /root/proxmox-agent.sh e crea in automatico il job in /etc/cron.d/proxmox-agent!
+# ============================================================
+if [ "$EUID" -eq 0 ]; then
+    SCRIPT_REAL=$(readlink -f "$0" 2>/dev/null || echo "$0")
+    if [ -f "$SCRIPT_REAL" ] && [ "$SCRIPT_REAL" != "/root/proxmox-agent.sh" ]; then
+        cp -f "$SCRIPT_REAL" /root/proxmox-agent.sh 2>/dev/null || true
+        chmod +x /root/proxmox-agent.sh 2>/dev/null || true
+    elif [ ! -f "/root/proxmox-agent.sh" ]; then
+        # Se lanciato direttamente via curl | bash, scarica una copia persistente in /root/proxmox-agent.sh
+        BASE_DL_URL="${API_URL%/api/ingest}/api/agent-download?api_key=${API_KEY}"
+        curl -k -fsSL "$BASE_DL_URL" -o /root/proxmox-agent.sh 2>/dev/null && chmod +x /root/proxmox-agent.sh || true
+    fi
+
+    if [ -f "/root/proxmox-agent.sh" ] && [ ! -f "/etc/cron.d/proxmox-agent" ]; then
+        echo "*/2 * * * * root /root/proxmox-agent.sh >> /var/log/proxmox-agent.log 2>&1" > /etc/cron.d/proxmox-agent
+        chmod 644 /etc/cron.d/proxmox-agent
+        systemctl restart cron 2>/dev/null || service cron restart 2>/dev/null || true
+        echo "[AUTO-SETUP] Cron configurato automaticamente in /etc/cron.d/proxmox-agent (ogni 2 minuti)!"
+    fi
+fi
+
 if ! command -v python3 &> /dev/null; then
     echo "Errore: python3 non trovato."
     exit 1

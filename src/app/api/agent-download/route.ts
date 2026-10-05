@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import pool, { queryOne, ensureSchema } from '@/lib/db';
+import pool, { queryOne, ensureSchema, getAppSettings } from '@/lib/db';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-function getLocalLanIp(): string {
+export function getLocalLanIp(): string {
   try {
     const nets = os.networkInterfaces();
     for (const name of Object.keys(nets)) {
@@ -24,7 +24,20 @@ function isIpAddress(host: string): boolean {
   return /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
 }
 
-function resolveDashboardBaseUrl(request: Request, originParam?: string | null): string {
+function resolveDashboardBaseUrl(
+  request: Request,
+  originParam?: string | null,
+  configuredPublicUrl?: string
+): string {
+  // 0. Se l'Admin ha impostato l'URL / IP della Centrale nelle Impostazioni, usa sempre quello!
+  if (configuredPublicUrl && configuredPublicUrl.trim()) {
+    const raw = configuredPublicUrl.trim().replace(/\/$/, '');
+    if (/^https?:\/\//i.test(raw)) {
+      return raw.replace(/\/api\/ingest$/i, '');
+    }
+    return `http://${raw.replace(/\/api\/ingest$/i, '')}`;
+  }
+
   const lanIp = getLocalLanIp();
 
   // 1. Se passato esplicitamente dal client (window.location.origin)
@@ -52,8 +65,7 @@ function resolveDashboardBaseUrl(request: Request, originParam?: string | null):
     }
   }
 
-  // 3. Usa direttamente l'IPv4 reale della scheda di rete del server Ubuntu (es. https://192.168.0.6)
-  // così i nodi Proxmox non hanno mai errori di DNS ("No address associated with hostname")!
+  // 3. Usa direttamente l'IPv4 reale della scheda di rete del server Ubuntu
   const isHttps =
     (originParam && originParam.startsWith('https://')) ||
     (refHeader && refHeader.startsWith('https://')) ||
@@ -72,6 +84,7 @@ function resolveDashboardBaseUrl(request: Request, originParam?: string | null):
 export async function GET(request: Request) {
   try {
     await ensureSchema();
+    const settings = await getAppSettings();
     const { searchParams } = new URL(request.url);
     const apiKeyParam = searchParams.get('api_key')?.trim();
     const companyIdParam = searchParams.get('company_id')?.trim();
@@ -84,7 +97,6 @@ export async function GET(request: Request) {
     if (apiKeyParam) {
       company = await queryOne('SELECT * FROM companies WHERE api_key = ?', [apiKeyParam]);
       if (!company) {
-        // Se l'utente scarica il file prima di premere "Registra Azienda", salviamo subito l'azienda nel DB!
         try {
           await pool.execute(
             'INSERT IGNORE INTO companies (id, name, contact_email, api_key) VALUES (UUID(), ?, ?, ?)',
@@ -106,7 +118,7 @@ export async function GET(request: Request) {
       return new NextResponse('API Key o Azienda non trovata', { status: 404 });
     }
 
-    const baseUrl = resolveDashboardBaseUrl(request, originParam);
+    const baseUrl = resolveDashboardBaseUrl(request, originParam, settings.public_url);
     const ingestUrl = `${baseUrl.replace(/\/$/, '')}/api/ingest`;
 
     const templatePath = path.join(process.cwd(), 'agent', 'proxmox-agent.sh');
