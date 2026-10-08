@@ -241,6 +241,7 @@ def collect_and_send_pve_node(target_node, storage_cfg_map):
 
             net_data = pvesh_get(f'/nodes/{target_node}/qemu/{vmid}/agent/network-get-interfaces', timeout=4)
             if isinstance(net_data, dict) and isinstance(net_data.get('result'), list):
+                guest_agent_responding = True
                 ips = []
                 for iface in net_data['result']:
                     if iface.get('name') == 'lo':
@@ -252,6 +253,101 @@ def collect_and_send_pve_node(target_node, storage_cfg_map):
                                 ips.append(ip_val)
                 if ips:
                     ip_addr = ', '.join(ips[:2])
+
+            # ============================================================
+            # CALCOLO RAM REALE INTERNA AL GUEST (Windows / Linux)
+            # Se QEMU Guest Agent risponde:
+            #   - legge RAM totale dentro Windows/Linux
+            #   - legge RAM libera/disponibile dentro il guest
+            #   - RAM usata = totale - libera
+            # Se Guest Agent non risponde: mantiene il dato Proxmox (mem / maxmem) come fallback
+            # ============================================================
+            if guest_agent_responding:
+                guest_ram_total = 0
+                guest_ram_free = 0
+                is_win_guest = ('win' in os_info.lower()) or ('win' in ostype_code.lower())
+
+                # 1. Per Guest Linux: legge direttamente /proc/meminfo tramite QEMU Guest Agent file-read
+                if not is_win_guest:
+                    memfile_out = run_cmd(['pvesh', 'get', f'/nodes/{target_node}/qemu/{vmid}/agent/file-read', '--file', '/proc/meminfo', '--output-format', 'json'], timeout=4)
+                    if memfile_out:
+                        try:
+                            mf_json = json.loads(memfile_out)
+                            content_str = mf_json.get('content', '') if isinstance(mf_json, dict) else ''
+                            if content_str:
+                                mem_map = {}
+                                for line in content_str.splitlines():
+                                    parts = line.split(':')
+                                    if len(parts) == 2:
+                                        k = parts[0].strip()
+                                        v_parts = parts[1].strip().split()
+                                        if v_parts and v_parts[0].isdigit():
+                                            mem_map[k] = int(v_parts[0]) * 1024
+                                tot_b = mem_map.get('MemTotal', 0)
+                                avail_b = mem_map.get('MemAvailable', 0)
+                                if avail_b <= 0 and mem_map.get('MemFree', 0) > 0:
+                                    avail_b = mem_map.get('MemFree', 0) + mem_map.get('Buffers', 0) + mem_map.get('Cached', 0)
+                                if tot_b > 0 and 0 <= avail_b <= tot_b:
+                                    guest_ram_total = tot_b
+                                    guest_ram_free = avail_b
+                        except Exception:
+                            pass
+
+                # 2. Per Guest Windows (o Linux se file-read non abilitato): controlla freemem / ballooninfo riportati dal Guest/VirtIO
+                if guest_ram_free <= 0:
+                    binfo = stat.get('ballooninfo') if isinstance(stat.get('ballooninfo'), dict) else {}
+                    free_b = int(stat.get('freemem') or binfo.get('free_mem') or 0)
+                    tot_b = int(binfo.get('total_mem') or maxmem or 0)
+                    if tot_b > 0 and 0 < free_b <= tot_b:
+                        guest_ram_total = tot_b
+                        guest_ram_free = free_b
+
+                # 3. Per Guest Windows (o Linux) tramite Guest Agent exec (legge FreePhysicalMemory e TotalVisibleMemorySize dentro l'OS)
+                if guest_ram_free <= 0 and is_local:
+                    if is_win_guest:
+                        w_out = run_cmd(['qm', 'guest', 'exec', str(vmid), '--', 'cmd.exe', '/c', 'wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /Value'], timeout=5)
+                        if not w_out or 'FreePhysicalMemory' not in w_out:
+                            w_out = run_cmd(['qm', 'guest', 'exec', str(vmid), '--', 'powershell', '-NoProfile', '-Command', 'Get-CimInstance Win32_OperatingSystem | Select-Object FreePhysicalMemory,TotalVisibleMemorySize | ConvertTo-Json -Compress'], timeout=6)
+                        if w_out:
+                            try:
+                                w_json = json.loads(w_out)
+                                out_text = str(w_json.get('out-data', ''))
+                                free_kb, tot_kb = 0, 0
+                                for line in out_text.replace('\r', '\n').splitlines():
+                                    if 'FreePhysicalMemory' in line:
+                                        nums = ''.join(ch for ch in line.split(':', 1)[-1].split('=', 1)[-1] if ch.isdigit())
+                                        if nums:
+                                            free_kb = int(nums)
+                                    elif 'TotalVisibleMemorySize' in line:
+                                        nums = ''.join(ch for ch in line.split(':', 1)[-1].split('=', 1)[-1] if ch.isdigit())
+                                        if nums:
+                                            tot_kb = int(nums)
+                                if tot_kb > 0 and 0 <= free_kb <= tot_kb:
+                                    guest_ram_total = tot_kb * 1024
+                                    guest_ram_free = free_kb * 1024
+                            except Exception:
+                                pass
+                    else:
+                        l_out = run_cmd(['qm', 'guest', 'exec', str(vmid), '--', 'sh', '-c', 'free -b'], timeout=4)
+                        if l_out:
+                            try:
+                                l_json = json.loads(l_out)
+                                out_text = str(l_json.get('out-data', ''))
+                                for line in out_text.splitlines():
+                                    if line.lower().startswith('mem:'):
+                                        cols = line.split()
+                                        if len(cols) >= 7 and cols[1].isdigit() and cols[6].isdigit():
+                                            guest_ram_total = int(cols[1])
+                                            guest_ram_free = int(cols[6])
+                            except Exception:
+                                pass
+
+                # Se abbiamo letto con successo RAM totale e libera dal Guest OS, calcoliamo:
+                # RAM usata = totale - libera
+                if guest_ram_total > 0 and 0 <= guest_ram_free <= guest_ram_total:
+                    maxmem = guest_ram_total
+                    mem_used = guest_ram_total - guest_ram_free
+                    ram_usage = round(100.0 * mem_used / maxmem, 1)
 
         disk_usage = round(100.0 * disk_used / maxdisk, 1) if maxdisk > 0 else 0.0
         last_backup = backup_map.get(str(vmid), 'Non rilevato')
