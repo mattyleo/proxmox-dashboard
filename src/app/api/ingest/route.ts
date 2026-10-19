@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     await ensureSchema();
     const data = await request.json();
     const {
-      api_key, company_name, hostname, ip_address, os_version, node_type, pbs_info, status,
+      api_key, company_name, hostname, ip_address, os_version, agent_version, node_type, pbs_info, status,
       ram_usage_percent, cpu_usage_percent, disk_usage_percent,
       vms, total_ram, used_ram, total_cpu, total_disk, used_disk, pending_updates
     } = data;
@@ -132,13 +132,14 @@ export async function POST(request: Request) {
       await pool.execute(
         `UPDATE servers SET 
           status=?, ip_address=COALESCE(?, ip_address), os_version=COALESCE(?, os_version),
-          node_type=COALESCE(?, node_type), pbs_info=COALESCE(?, pbs_info),
+          agent_version=COALESCE(?, agent_version), node_type=COALESCE(?, node_type), pbs_info=COALESCE(?, pbs_info),
           last_seen=NOW(), total_ram=?, used_ram=?, total_cpu=?, cpu_usage=?, total_disk=?, used_disk=?, pending_updates=?
          WHERE id=?`,
         [
           status || 'online',
           ip_address ?? null,
           os_version ?? null,
+          agent_version ?? null,
           node_type ?? 'pve',
           pbsInfoJson,
           total_ram ?? null,
@@ -154,13 +155,14 @@ export async function POST(request: Request) {
     } else {
       await pool.execute(
         `INSERT INTO servers 
-          (id, company_id, hostname, ip_address, os_version, node_type, pbs_info, status, last_seen, total_ram, used_ram, total_cpu, cpu_usage, total_disk, used_disk, pending_updates)
-         VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?)`,
+          (id, company_id, hostname, ip_address, os_version, agent_version, node_type, pbs_info, status, last_seen, total_ram, used_ram, total_cpu, cpu_usage, total_disk, used_disk, pending_updates)
+         VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?)`,
         [
           company.id,
           hostname,
           ip_address ?? null,
           os_version ?? 'Proxmox VE',
+          agent_version ?? '6.2.0',
           node_type ?? 'pve',
           pbsInfoJson,
           status || 'online',

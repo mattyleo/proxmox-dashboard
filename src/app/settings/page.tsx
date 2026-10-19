@@ -7,6 +7,7 @@ import {
 } from '@/lib/db';
 import { getCurrentUser, isAdmin } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import SystemUpdateCard from '@/components/SystemUpdateCard';
 
 export default async function SettingsPage() {
   const [settings, currentUser, usersList] = await Promise.all([
@@ -281,6 +282,9 @@ export default async function SettingsPage() {
         </section>
       </div>
 
+      {/* PANNELLO AGGIORNAMENTO 1-CLICK & FLOTTA AGENTI */}
+      {canManage && <SystemUpdateCard />}
+
       {/* PANNELLO 3: GESTIONE UTENTI E PERMESSI (EMAIL & RUOLI) */}
       <section className="glass-panel p-8 rounded-3xl border border-white/10 space-y-6">
         <div>
@@ -322,7 +326,7 @@ export default async function SettingsPage() {
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">Password</label>
                 <input
-                  type="text"
+                  type="password"
                   name="password"
                   required
                   placeholder="Imposta password..."

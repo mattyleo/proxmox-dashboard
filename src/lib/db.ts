@@ -128,6 +128,7 @@ export async function ensureSchema() {
         hostname VARCHAR(255) NOT NULL,
         ip_address VARCHAR(50),
         os_version VARCHAR(255),
+        agent_version VARCHAR(50) DEFAULT '6.0.0',
         node_type VARCHAR(30) DEFAULT 'pve',
         pbs_info TEXT,
         total_ram BIGINT,
@@ -218,6 +219,7 @@ export async function ensureSchema() {
 
     const alterStatements = [
       "ALTER TABLE servers ADD COLUMN IF NOT EXISTS os_version VARCHAR(255)",
+      "ALTER TABLE servers ADD COLUMN IF NOT EXISTS agent_version VARCHAR(50) DEFAULT '6.0.0'",
       "ALTER TABLE servers ADD COLUMN IF NOT EXISTS node_type VARCHAR(30) DEFAULT 'pve'",
       "ALTER TABLE servers ADD COLUMN IF NOT EXISTS pbs_info TEXT",
       "ALTER TABLE servers ADD COLUMN IF NOT EXISTS used_ram BIGINT",
@@ -355,6 +357,10 @@ export async function upsertUser(user: {
   const cleanPassword = user.password.trim();
   const role = user.role || 'tecnico';
 
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { hashPassword } = require('@/lib/auth');
+  const securePassword = cleanPassword.startsWith('scrypt$') ? cleanPassword : hashPassword(cleanPassword);
+
   const state = readLocalState();
   const existingIdx = state.users.findIndex((u) => u.email.toLowerCase() === cleanEmail);
   const userId = existingIdx >= 0 ? state.users[existingIdx].id : crypto.randomUUID();
@@ -362,7 +368,7 @@ export async function upsertUser(user: {
     id: userId,
     name: cleanName,
     email: cleanEmail,
-    password: cleanPassword,
+    password: securePassword,
     role,
     created_at: new Date().toISOString(),
   };
@@ -380,7 +386,7 @@ export async function upsertUser(user: {
       `INSERT INTO users (id, name, email, password, role)
        VALUES (?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE name = VALUES(name), password = VALUES(password), role = VALUES(role)`,
-      [userId, cleanName, cleanEmail, cleanPassword, role]
+      [userId, cleanName, cleanEmail, securePassword, role]
     );
   } catch {
     // Salvato nel fallback locale

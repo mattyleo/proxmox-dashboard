@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { findUserByEmail, hasAnyUser, upsertUser, saveAppSettings, getAppSettings } from '@/lib/db';
-import { SessionUser } from '@/lib/auth';
+import { SessionUser, verifyPassword, needsPasswordMigration, hashPassword } from '@/lib/auth';
 
 export async function GET() {
   try {
@@ -87,11 +87,25 @@ export async function POST(request: Request) {
 
     // LOGIN ORDINARIO
     const dbUser = await findUserByEmail(emailRaw);
-    if (!dbUser || dbUser.password !== passwordRaw) {
+    if (!dbUser || !verifyPassword(passwordRaw, dbUser.password)) {
       return NextResponse.json(
         { error: 'Credenziali non valide. Controlla email e password.' },
         { status: 401 }
       );
+    }
+
+    // Auto-migrazione trasparente: se la password nel DB era ancora in chiaro, la cripta con scrypt
+    if (needsPasswordMigration(dbUser.password)) {
+      try {
+        await upsertUser({
+          name: dbUser.name,
+          email: dbUser.email,
+          password: hashPassword(passwordRaw),
+          role: dbUser.role as any,
+        });
+      } catch {
+        // Ignora se fallisce la riscrittura
+      }
     }
 
     const matchedUser: SessionUser = {

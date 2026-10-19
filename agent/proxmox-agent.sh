@@ -7,6 +7,32 @@
 API_URL="http://INSERISCI_IP_DASHBOARD:3000/api/ingest"
 API_KEY="INSERISCI_QUI_LA_API_KEY_AZIENDALE"
 COMPANY_NAME="Azienda"
+AGENT_VERSION="6.2.0"
+
+# ============================================================
+# AUTO-UPDATE CENTRALIZZATO DEGLI AGENTI SUI 50+ NODI PROXMOX
+# All'avvio l'agente controlla se la Dashboard centrale ha una nuova
+# versione. Se disponibile, si auto-aggiorna al volo e riesegue!
+# ============================================================
+SCRIPT_SELF=$(readlink -f "$0" 2>/dev/null || echo "$0")
+if [ -n "$API_URL" ] && [ -n "$API_KEY" ] && [ "$API_KEY" != "INSERISCI_QUI_LA_API_KEY_AZIENDALE" ] && [ -f "$SCRIPT_SELF" ] && [ "$EUID" -eq 0 ]; then
+    BASE_URL="${API_URL%/api/ingest}"
+    # Controllo rapido (timeout max 4s per non bloccare se la rete è lenta)
+    REMOTE_AGENT=$(curl -k -fsSL --connect-timeout 4 --max-time 12 "${BASE_URL}/api/agent-download?api_key=${API_KEY}" 2>/dev/null)
+    if [ -n "$REMOTE_AGENT" ]; then
+        REMOTE_VER=$(echo "$REMOTE_AGENT" | grep -m1 '^AGENT_VERSION=' | cut -d'"' -f2)
+        if [ -n "$REMOTE_VER" ] && [ "$REMOTE_VER" != "$AGENT_VERSION" ]; then
+            echo "[AUTO-UPDATE] Rilevata nuova versione agente v${REMOTE_VER} (attuale: v${AGENT_VERSION}). Aggiornamento in corso..."
+            echo "$REMOTE_AGENT" > "${SCRIPT_SELF}.new" && chmod +x "${SCRIPT_SELF}.new"
+            mv -f "${SCRIPT_SELF}.new" "$SCRIPT_SELF"
+            if [ -f "/root/proxmox-agent.sh" ] && [ "$SCRIPT_SELF" != "/root/proxmox-agent.sh" ]; then
+                cp -f "$SCRIPT_SELF" /root/proxmox-agent.sh 2>/dev/null || true
+            fi
+            echo "[AUTO-UPDATE] Aggiornamento completato alla v${REMOTE_VER}. Riavvio agente..."
+            exec "$SCRIPT_SELF" "$@"
+        fi
+    fi
+fi
 
 # ============================================================
 # AUTO-INSTALLAZIONE IN CRON AL PRIMO AVVIO (Zero configurazione manuale!)
@@ -471,6 +497,7 @@ def collect_and_send_pve_node(target_node, storage_cfg_map):
         'hostname': target_node,
         'ip_address': local_ip if is_local else f'Cluster Node ({target_node})',
         'os_version': pve_version,
+        'agent_version': '6.2.0',
         'node_type': 'pve',
         'pbs_info': pbs_storages,
         'status': 'online',

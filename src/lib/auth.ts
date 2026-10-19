@@ -37,3 +37,40 @@ export function isAdmin(user: SessionUser | null): boolean {
 export function canDeployAgents(user: SessionUser | null): boolean {
   return user?.role === 'admin' || user?.role === 'supervisore';
 }
+
+/** Hashing crittografico memory-hard scrypt con salt casuale a 16 byte (standard NIST) */
+export function hashPassword(password: string): string {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const crypto = require('crypto');
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return `scrypt$${salt}$${hash}`;
+}
+
+/** Verifica sicura con timingSafeEqual contro attacchi di timing, con fallback su legacy plaintext */
+export function verifyPassword(password: string, storedHash: string): boolean {
+  if (!storedHash) return false;
+  // Se la password è un vecchio hash plaintext (non ancora migrato)
+  if (!storedHash.startsWith('scrypt$')) {
+    return password === storedHash;
+  }
+  const parts = storedHash.split('$');
+  if (parts.length !== 3) return false;
+  const [, salt, originalHash] = parts;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const crypto = require('crypto');
+    const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+    const a = Buffer.from(hash, 'hex');
+    const b = Buffer.from(originalHash, 'hex');
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
+/** Verifica se la password nel database è ancora in chiaro e richiede migrazione */
+export function needsPasswordMigration(storedHash: string): boolean {
+  return !storedHash || !storedHash.startsWith('scrypt$');
+}
