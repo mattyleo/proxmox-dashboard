@@ -197,7 +197,7 @@ export async function POST(request: Request) {
         const {
           vmid, name, vm_type, status: vmStatus, os_info, ip_address: vmIp,
           uptime, maxmem, mem_used, cpus, maxdisk, disk_used,
-          cpu_usage, ram_usage, disk_usage, agent_enabled,
+          cpu_usage, ram_usage, ram_source, disk_usage, agent_enabled,
           pending_updates: vmUpdates, last_backup
         } = vmData;
 
@@ -225,7 +225,7 @@ export async function POST(request: Request) {
             `UPDATE vms SET 
               name=?, vm_type=?, status=?, os_info=?, ip_address=?, uptime=?,
               maxmem=?, mem_used=?, cpus=?, maxdisk=?, disk_used=?,
-              cpu_usage=?, ram_usage=?, disk_usage=?, agent_enabled=?,
+              cpu_usage=?, ram_usage=?, ram_source=COALESCE(?, ram_source), disk_usage=?, agent_enabled=?,
               pending_updates=?, last_backup=?, health_issues=?, last_seen=NOW()
              WHERE id=?`,
             [
@@ -242,6 +242,7 @@ export async function POST(request: Request) {
               calcDiskUsed,
               cpu_usage ?? 0,
               calcRamUsage,
+              ram_source || 'proxmox',
               calcDiskUsage,
               agent_enabled ? 1 : 0,
               vmUpdates ?? 0,
@@ -253,8 +254,8 @@ export async function POST(request: Request) {
         } else {
           await pool.execute(
             `INSERT INTO vms 
-              (id, server_id, vmid, name, vm_type, status, os_info, ip_address, uptime, maxmem, mem_used, cpus, maxdisk, disk_used, cpu_usage, ram_usage, disk_usage, agent_enabled, pending_updates, last_backup, health_issues, last_seen)
-             VALUES (UUID(),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())`,
+              (id, server_id, vmid, name, vm_type, status, os_info, ip_address, uptime, maxmem, mem_used, cpus, maxdisk, disk_used, cpu_usage, ram_usage, ram_source, disk_usage, agent_enabled, pending_updates, last_backup, health_issues, last_seen)
+             VALUES (UUID(),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())`,
             [
               serverId,
               vmid,
@@ -271,6 +272,7 @@ export async function POST(request: Request) {
               calcDiskUsed,
               cpu_usage ?? 0,
               calcRamUsage,
+              ram_source || 'proxmox',
               calcDiskUsage,
               agent_enabled ? 1 : 0,
               vmUpdates ?? 0,

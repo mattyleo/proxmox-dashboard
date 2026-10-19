@@ -66,6 +66,54 @@ def pvesh_get(path, timeout=8):
     except Exception:
         return None
 
+def qga_exec(vmid, cmd_list, timeout=8, node=None):
+    target = node or local_hostname
+    # 1. Esecuzione diretta con qm guest exec se il nodo è locale
+    if target == local_hostname and shutil.which('qm'):
+        try:
+            cli = ['qm', 'guest', 'exec', str(vmid), '--timeout', str(timeout), '--'] + list(cmd_list)
+            res = run_cmd(cli, timeout=timeout + 4)
+            if res:
+                j = json.loads(res)
+                out_data = str(j.get('out-data') or '').strip()
+                if out_data.startswith('\ufeff'):
+                    out_data = out_data[1:].strip()
+                if out_data:
+                    return out_data
+        except Exception:
+            pass
+
+    # 2. Fallback / cluster remoto tramite API pvesh agent/exec
+    if shutil.which('pvesh'):
+        try:
+            args = ['pvesh', 'create', f'/nodes/{target}/qemu/{vmid}/agent/exec']
+            for c in cmd_list:
+                args.extend(['--command', str(c)])
+            args.extend(['--output-format', 'json'])
+            exec_raw = run_cmd(args, timeout=timeout)
+            if exec_raw:
+                ej = json.loads(exec_raw)
+                pid = ej.get('pid')
+                if pid:
+                    import time
+                    deadline = time.time() + timeout
+                    while time.time() < deadline:
+                        time.sleep(0.4)
+                        st_raw = run_cmd(['pvesh', 'get', f'/nodes/{target}/qemu/{vmid}/agent/exec-status', '--pid', str(pid), '--output-format', 'json'], timeout=3)
+                        if st_raw:
+                            sj = json.loads(st_raw)
+                            if sj.get('exited') or sj.get('exitcode') is not None:
+                                out_data = str(sj.get('out-data') or '').strip()
+                                if out_data.startswith('\ufeff'):
+                                    out_data = out_data[1:].strip()
+                                if out_data:
+                                    return out_data
+                                break
+        except Exception:
+            pass
+
+    return ""
+
 def build_candidate_urls(primary_url):
     urls = [primary_url]
     try:
@@ -203,6 +251,7 @@ def collect_and_send_pve_node(target_node, storage_cfg_map):
         maxmem = int(stat.get('maxmem') or 0)
         mem_used = int(stat.get('mem') or 0) if status == 'running' else 0
         ram_usage = round(100.0 * mem_used / maxmem, 1) if maxmem > 0 and status == 'running' else 0.0
+        ram_source = 'proxmox'
 
         maxdisk = int(stat.get('maxdisk') or 0)
         disk_used = int(stat.get('disk') or 0)
@@ -255,99 +304,82 @@ def collect_and_send_pve_node(target_node, storage_cfg_map):
                     ip_addr = ', '.join(ips[:2])
 
             # ============================================================
-            # CALCOLO RAM REALE INTERNA AL GUEST (Windows / Linux)
+            # RAM REALE VISTA DAL SISTEMA OPERATIVO GUEST (Windows / Linux)
             # Se QEMU Guest Agent risponde:
-            #   - legge RAM totale dentro Windows/Linux
-            #   - legge RAM libera/disponibile dentro il guest
-            #   - RAM usata = totale - libera
-            # Se Guest Agent non risponde: mantiene il dato Proxmox (mem / maxmem) come fallback
+            #   - legge RAM totale e libera dentro il guest
+            #   - mem_used = totale - libera
+            # Se Guest Agent non risponde: fallback a stat Proxmox (mem / maxmem)
             # ============================================================
-            if guest_agent_responding:
-                guest_ram_total = 0
-                guest_ram_free = 0
-                is_win_guest = ('win' in os_info.lower()) or ('win' in ostype_code.lower())
+            guest_mem_data = ""
+            is_win = ostype_code.startswith('win') or ostype_code.startswith('w2k') or ('win' in os_info.lower())
 
-                # 1. Per Guest Linux: legge direttamente /proc/meminfo tramite QEMU Guest Agent file-read
-                if not is_win_guest:
-                    memfile_out = run_cmd(['pvesh', 'get', f'/nodes/{target_node}/qemu/{vmid}/agent/file-read', '--file', '/proc/meminfo', '--output-format', 'json'], timeout=4)
-                    if memfile_out:
-                        try:
-                            mf_json = json.loads(memfile_out)
-                            content_str = mf_json.get('content', '') if isinstance(mf_json, dict) else ''
-                            if content_str:
-                                mem_map = {}
-                                for line in content_str.splitlines():
-                                    parts = line.split(':')
-                                    if len(parts) == 2:
-                                        k = parts[0].strip()
-                                        v_parts = parts[1].strip().split()
-                                        if v_parts and v_parts[0].isdigit():
-                                            mem_map[k] = int(v_parts[0]) * 1024
-                                tot_b = mem_map.get('MemTotal', 0)
-                                avail_b = mem_map.get('MemAvailable', 0)
-                                if avail_b <= 0 and mem_map.get('MemFree', 0) > 0:
-                                    avail_b = mem_map.get('MemFree', 0) + mem_map.get('Buffers', 0) + mem_map.get('Cached', 0)
-                                if tot_b > 0 and 0 <= avail_b <= tot_b:
-                                    guest_ram_total = tot_b
-                                    guest_ram_free = avail_b
-                        except Exception:
-                            pass
+            if is_win:
+                guest_mem_data = qga_exec(
+                    vmid,
+                    [
+                        'powershell.exe',
+                        '-NoProfile',
+                        '-Command',
+                        'Get-CimInstance Win32_OperatingSystem | '
+                        'Select-Object TotalVisibleMemorySize,FreePhysicalMemory | '
+                        'ConvertTo-Json -Compress'
+                    ],
+                    timeout=8,
+                    node=target_node
+                )
 
-                # 2. Per Guest Windows (o Linux se file-read non abilitato): controlla freemem / ballooninfo riportati dal Guest/VirtIO
-                if guest_ram_free <= 0:
-                    binfo = stat.get('ballooninfo') if isinstance(stat.get('ballooninfo'), dict) else {}
-                    free_b = int(stat.get('freemem') or binfo.get('free_mem') or 0)
-                    tot_b = int(binfo.get('total_mem') or maxmem or 0)
-                    if tot_b > 0 and 0 < free_b <= tot_b:
-                        guest_ram_total = tot_b
-                        guest_ram_free = free_b
+                if guest_mem_data:
+                    try:
+                        gm = json.loads(guest_mem_data)
+                        total_kb = int(gm.get('TotalVisibleMemorySize') or 0)
+                        free_kb = int(gm.get('FreePhysicalMemory') or 0)
 
-                # 3. Per Guest Windows (o Linux) tramite Guest Agent exec (legge FreePhysicalMemory e TotalVisibleMemorySize dentro l'OS)
-                if guest_ram_free <= 0 and is_local:
-                    if is_win_guest:
-                        w_out = run_cmd(['qm', 'guest', 'exec', str(vmid), '--', 'cmd.exe', '/c', 'wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /Value'], timeout=5)
-                        if not w_out or 'FreePhysicalMemory' not in w_out:
-                            w_out = run_cmd(['qm', 'guest', 'exec', str(vmid), '--', 'powershell', '-NoProfile', '-Command', 'Get-CimInstance Win32_OperatingSystem | Select-Object FreePhysicalMemory,TotalVisibleMemorySize | ConvertTo-Json -Compress'], timeout=6)
-                        if w_out:
-                            try:
-                                w_json = json.loads(w_out)
-                                out_text = str(w_json.get('out-data', ''))
-                                free_kb, tot_kb = 0, 0
-                                for line in out_text.replace('\r', '\n').splitlines():
-                                    if 'FreePhysicalMemory' in line:
-                                        nums = ''.join(ch for ch in line.split(':', 1)[-1].split('=', 1)[-1] if ch.isdigit())
-                                        if nums:
-                                            free_kb = int(nums)
-                                    elif 'TotalVisibleMemorySize' in line:
-                                        nums = ''.join(ch for ch in line.split(':', 1)[-1].split('=', 1)[-1] if ch.isdigit())
-                                        if nums:
-                                            tot_kb = int(nums)
-                                if tot_kb > 0 and 0 <= free_kb <= tot_kb:
-                                    guest_ram_total = tot_kb * 1024
-                                    guest_ram_free = free_kb * 1024
-                            except Exception:
-                                pass
-                    else:
-                        l_out = run_cmd(['qm', 'guest', 'exec', str(vmid), '--', 'sh', '-c', 'free -b'], timeout=4)
-                        if l_out:
-                            try:
-                                l_json = json.loads(l_out)
-                                out_text = str(l_json.get('out-data', ''))
-                                for line in out_text.splitlines():
-                                    if line.lower().startswith('mem:'):
-                                        cols = line.split()
-                                        if len(cols) >= 7 and cols[1].isdigit() and cols[6].isdigit():
-                                            guest_ram_total = int(cols[1])
-                                            guest_ram_free = int(cols[6])
-                            except Exception:
-                                pass
+                        if total_kb > 0 and 0 <= free_kb <= total_kb:
+                            maxmem = total_kb * 1024
+                            mem_used = (total_kb - free_kb) * 1024
+                            ram_usage = round(100.0 * mem_used / maxmem, 1)
+                            ram_source = 'guest-agent'
+                            guest_agent_responding = True
+                    except Exception:
+                        pass
+            else:
+                guest_mem_data = qga_exec(
+                    vmid,
+                    [
+                        'sh',
+                        '-c',
+                        """awk '/MemTotal:/ {t=$2} /MemAvailable:/ {a=$2} /MemFree:/ {f=$2} /Buffers:/ {b=$2} /^Cached:/ {c=$2} END {if(!a || a==0){a=f+b+c} printf "{\\"total_kb\\":%d,\\"avail_kb\\":%d}",t,a}' /proc/meminfo"""
+                    ],
+                    timeout=8,
+                    node=target_node
+                )
 
-                # Se abbiamo letto con successo RAM totale e libera dal Guest OS, calcoliamo:
-                # RAM usata = totale - libera
-                if guest_ram_total > 0 and 0 <= guest_ram_free <= guest_ram_total:
-                    maxmem = guest_ram_total
-                    mem_used = guest_ram_total - guest_ram_free
+                if guest_mem_data:
+                    try:
+                        gm = json.loads(guest_mem_data)
+                        total_kb = int(gm.get('total_kb') or 0)
+                        free_kb = int(gm.get('avail_kb') or 0)
+
+                        if total_kb > 0 and 0 <= free_kb <= total_kb:
+                            maxmem = total_kb * 1024
+                            mem_used = (total_kb - free_kb) * 1024
+                            ram_usage = round(100.0 * mem_used / maxmem, 1)
+                            ram_source = 'guest-agent'
+                            guest_agent_responding = True
+                    except Exception:
+                        pass
+
+            # Fallback secondario VirtIO ballooninfo se qga_exec non ha prodotto dati ma il driver è attivo
+            if ram_source != 'guest-agent':
+                binfo = stat.get('ballooninfo') if isinstance(stat.get('ballooninfo'), dict) else {}
+                free_b = int(stat.get('freemem') or binfo.get('free_mem') or 0)
+                tot_b = int(binfo.get('total_mem') or maxmem or 0)
+                if tot_b > 0 and 0 < free_b <= tot_b:
+                    maxmem = tot_b
+                    mem_used = tot_b - free_b
                     ram_usage = round(100.0 * mem_used / maxmem, 1)
+                    ram_source = 'guest-agent'
+                    guest_agent_responding = True
 
         disk_usage = round(100.0 * disk_used / maxdisk, 1) if maxdisk > 0 else 0.0
         last_backup = backup_map.get(str(vmid), 'Non rilevato')
@@ -388,6 +420,7 @@ def collect_and_send_pve_node(target_node, storage_cfg_map):
             'maxmem': maxmem,
             'mem_used': mem_used,
             'ram_usage': ram_usage,
+            'ram_source': ram_source,
             'maxdisk': maxdisk,
             'disk_used': disk_used,
             'disk_usage': disk_usage,

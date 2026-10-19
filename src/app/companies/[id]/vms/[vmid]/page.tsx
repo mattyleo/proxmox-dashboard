@@ -299,7 +299,18 @@ export default async function VmDetailPage({
           <div>
             <div className="flex justify-between items-start mb-4">
               <div>
-                <span className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Memoria RAM</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Memoria RAM</span>
+                  {vm.ram_source === 'guest-agent' ? (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold" title="RAM rilevata dall'interno del sistema operativo guest (Windows/Linux) tramite QEMU Guest Agent">
+                      🟢 Guest OS
+                    </span>
+                  ) : (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold" title="RAM allocata dall'hypervisor Proxmox Host">
+                      ⚠️ Host Fallback
+                    </span>
+                  )}
+                </div>
                 <h3 className="text-3xl font-black mt-1">{ramPct.toFixed(1)}%</h3>
               </div>
               <span className="text-2xl bg-indigo-500/15 border border-indigo-500/30 p-2.5 rounded-2xl">🧠</span>

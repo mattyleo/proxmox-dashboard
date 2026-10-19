@@ -293,8 +293,15 @@ export default async function CompanyDetailsPage({
                       </div>
 
                       <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-muted-foreground">RAM ({formatGB(usedMem)} usati)</span>
+                        <div className="flex justify-between mb-1 items-center">
+                          <span className="text-muted-foreground flex items-center gap-1.5">
+                            RAM ({formatGB(usedMem)} usati)
+                            {vm.ram_source === 'guest-agent' && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold" title="Rilevata dal Guest OS">
+                                Guest
+                              </span>
+                            )}
+                          </span>
                           <span className="font-mono text-success font-semibold">{formatGB(freeMem)} liberi</span>
                         </div>
                         <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">

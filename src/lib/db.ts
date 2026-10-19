@@ -160,6 +160,7 @@ export async function ensureSchema() {
         maxmem BIGINT,
         mem_used BIGINT,
         ram_usage FLOAT,
+        ram_source VARCHAR(30) DEFAULT 'proxmox',
         maxdisk BIGINT,
         disk_used BIGINT,
         disk_usage FLOAT,
@@ -234,7 +235,8 @@ export async function ensureSchema() {
       "ALTER TABLE vms ADD COLUMN IF NOT EXISTS pending_updates INT DEFAULT 0",
       "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS public_url VARCHAR(255) DEFAULT ''",
       "ALTER TABLE vms ADD COLUMN IF NOT EXISTS last_backup VARCHAR(100)",
-      "ALTER TABLE vms ADD COLUMN IF NOT EXISTS health_issues TEXT"
+      "ALTER TABLE vms ADD COLUMN IF NOT EXISTS health_issues TEXT",
+      "ALTER TABLE vms ADD COLUMN IF NOT EXISTS ram_source VARCHAR(30) DEFAULT 'proxmox'"
     ];
 
     for (const stmt of alterStatements) {
