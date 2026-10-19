@@ -38,7 +38,7 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 python3 - "$API_KEY" "$API_URL" "$COMPANY_NAME" << 'EOF'
-import subprocess, json, sys, socket, os, shutil, urllib.request, urllib.error, urllib.parse, ssl
+import subprocess, json, sys, socket, os, shutil, urllib.request, urllib.error, urllib.parse, ssl, time
 
 api_key = sys.argv[1]
 api_url = sys.argv[2]
@@ -66,51 +66,67 @@ def pvesh_get(path, timeout=8):
     except Exception:
         return None
 
-def qga_exec(vmid, cmd_list, timeout=8, node=None):
-    target = node or local_hostname
-    # 1. Esecuzione diretta con qm guest exec se il nodo è locale
-    if target == local_hostname and shutil.which('qm'):
-        try:
-            cli = ['qm', 'guest', 'exec', str(vmid), '--timeout', str(timeout), '--'] + list(cmd_list)
+def qga_exec(target_node, vmid, command, timeout=10):
+    try:
+        # Se locale, prova prima qm guest exec (velocissimo, senza polling)
+        if target_node == local_hostname and shutil.which('qm'):
+            cli = ['qm', 'guest', 'exec', str(vmid), '--timeout', str(timeout), '--'] + list(command)
             res = run_cmd(cli, timeout=timeout + 4)
             if res:
                 j = json.loads(res)
-                out_data = str(j.get('out-data') or '').strip()
-                if out_data.startswith('\ufeff'):
-                    out_data = out_data[1:].strip()
-                if out_data:
-                    return out_data
-        except Exception:
-            pass
+                if int(j.get('exited') or 0) == 1 and int(j.get('exitcode') or 0) == 0:
+                    out = str(j.get('out-data') or '').strip()
+                    if out.startswith('\ufeff'):
+                        out = out[1:].strip()
+                    if out:
+                        return out
 
-    # 2. Fallback / cluster remoto tramite API pvesh agent/exec
-    if shutil.which('pvesh'):
-        try:
-            args = ['pvesh', 'create', f'/nodes/{target}/qemu/{vmid}/agent/exec']
-            for c in cmd_list:
-                args.extend(['--command', str(c)])
-            args.extend(['--output-format', 'json'])
-            exec_raw = run_cmd(args, timeout=timeout)
-            if exec_raw:
-                ej = json.loads(exec_raw)
-                pid = ej.get('pid')
-                if pid:
-                    import time
-                    deadline = time.time() + timeout
-                    while time.time() < deadline:
-                        time.sleep(0.4)
-                        st_raw = run_cmd(['pvesh', 'get', f'/nodes/{target}/qemu/{vmid}/agent/exec-status', '--pid', str(pid), '--output-format', 'json'], timeout=3)
-                        if st_raw:
-                            sj = json.loads(st_raw)
-                            if sj.get('exited') or sj.get('exitcode') is not None:
-                                out_data = str(sj.get('out-data') or '').strip()
-                                if out_data.startswith('\ufeff'):
-                                    out_data = out_data[1:].strip()
-                                if out_data:
-                                    return out_data
-                                break
-        except Exception:
-            pass
+        cmd = [
+            'pvesh', 'create',
+            f'/nodes/{target_node}/qemu/{vmid}/agent/exec'
+        ]
+
+        for arg in command:
+            cmd.extend(['--command', str(arg)])
+
+        cmd.extend(['--output-format', 'json'])
+
+        out = run_cmd(cmd, timeout=min(timeout, 8))
+        if not out:
+            return ""
+
+        data = json.loads(out)
+        pid = data.get('pid')
+
+        if pid is None:
+            return ""
+
+        deadline = time.time() + timeout
+
+        while time.time() < deadline:
+            status_out = run_cmd([
+                'pvesh', 'get',
+                f'/nodes/{target_node}/qemu/{vmid}/agent/exec-status',
+                '--pid', str(pid),
+                '--output-format', 'json'
+            ], timeout=4)
+
+            if status_out:
+                status_data = json.loads(status_out)
+
+                if int(status_data.get('exited') or 0) == 1:
+                    if int(status_data.get('exitcode') or 0) == 0:
+                        out = str(status_data.get('out-data') or '').strip()
+                        if out.startswith('\ufeff'):
+                            out = out[1:].strip()
+                        return out
+
+                    return ""
+
+            time.sleep(0.20)
+
+    except Exception:
+        pass
 
     return ""
 
@@ -303,18 +319,12 @@ def collect_and_send_pve_node(target_node, storage_cfg_map):
                 if ips:
                     ip_addr = ', '.join(ips[:2])
 
-            # ============================================================
-            # RAM REALE VISTA DAL SISTEMA OPERATIVO GUEST (Windows / Linux)
-            # Se QEMU Guest Agent risponde:
-            #   - legge RAM totale e libera dentro il guest
-            #   - mem_used = totale - libera
-            # Se Guest Agent non risponde: fallback a stat Proxmox (mem / maxmem)
-            # ============================================================
-            guest_mem_data = ""
+            # RAM reale vista dal sistema operativo guest
             is_win = ostype_code.startswith('win') or ostype_code.startswith('w2k') or ('win' in os_info.lower())
 
             if is_win:
                 guest_mem_data = qga_exec(
+                    target_node,
                     vmid,
                     [
                         'powershell.exe',
@@ -324,48 +334,68 @@ def collect_and_send_pve_node(target_node, storage_cfg_map):
                         'Select-Object TotalVisibleMemorySize,FreePhysicalMemory | '
                         'ConvertTo-Json -Compress'
                     ],
-                    timeout=8,
-                    node=target_node
+                    timeout=10
                 )
 
                 if guest_mem_data:
                     try:
                         gm = json.loads(guest_mem_data)
+
                         total_kb = int(gm.get('TotalVisibleMemorySize') or 0)
                         free_kb = int(gm.get('FreePhysicalMemory') or 0)
 
                         if total_kb > 0 and 0 <= free_kb <= total_kb:
-                            maxmem = total_kb * 1024
+                            guest_total = total_kb * 1024
+                            maxmem = guest_total
                             mem_used = (total_kb - free_kb) * 1024
-                            ram_usage = round(100.0 * mem_used / maxmem, 1)
+                            ram_usage = round(
+                                100.0 * mem_used / guest_total, 1
+                            )
                             ram_source = 'guest-agent'
                             guest_agent_responding = True
+
                     except Exception:
                         pass
+
             else:
                 guest_mem_data = qga_exec(
+                    target_node,
                     vmid,
-                    [
-                        'sh',
-                        '-c',
-                        """awk '/MemTotal:/ {t=$2} /MemAvailable:/ {a=$2} /MemFree:/ {f=$2} /Buffers:/ {b=$2} /^Cached:/ {c=$2} END {if(!a || a==0){a=f+b+c} printf "{\\"total_kb\\":%d,\\"avail_kb\\":%d}",t,a}' /proc/meminfo"""
-                    ],
-                    timeout=8,
-                    node=target_node
+                    ['cat', '/proc/meminfo'],
+                    timeout=8
                 )
 
                 if guest_mem_data:
                     try:
-                        gm = json.loads(guest_mem_data)
-                        total_kb = int(gm.get('total_kb') or 0)
-                        free_kb = int(gm.get('avail_kb') or 0)
+                        meminfo = {}
+
+                        for line in guest_mem_data.splitlines():
+                            if ':' not in line:
+                                continue
+
+                            key, value = line.split(':', 1)
+                            parts = value.strip().split()
+
+                            if parts and parts[0].isdigit():
+                                meminfo[key] = int(parts[0])
+
+                        total_kb = int(meminfo.get('MemTotal') or 0)
+                        free_kb = int(
+                            meminfo.get('MemAvailable')
+                            or meminfo.get('MemFree')
+                            or 0
+                        )
 
                         if total_kb > 0 and 0 <= free_kb <= total_kb:
-                            maxmem = total_kb * 1024
+                            guest_total = total_kb * 1024
+                            maxmem = guest_total
                             mem_used = (total_kb - free_kb) * 1024
-                            ram_usage = round(100.0 * mem_used / maxmem, 1)
+                            ram_usage = round(
+                                100.0 * mem_used / guest_total, 1
+                            )
                             ram_source = 'guest-agent'
                             guest_agent_responding = True
+
                     except Exception:
                         pass
 
