@@ -135,13 +135,13 @@ export default function LoginPage() {
 
           <div>
             <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-              {needsSetup ? 'Email Amministratore' : 'Indirizzo Email'}
+              {needsSetup ? 'Email Amministratore' : 'Email o Nome Utente (es. info@leonimattia.it o admin)'}
             </label>
             <input
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Inserisci la tua email aziendale..."
+              placeholder="Inserisci la tua email aziendale o username..."
               className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               required
             />
